@@ -2,9 +2,11 @@
 HistData.com 5-minute OHLC backfill (true OHLC built from HistData free 1-min ASCII bars).
 
 Usage:
-  python -u fetch_histdata.py              # 2025 -> now, EURUSD
-  python -u fetch_histdata.py 2023         # 2023 -> now
-  python -u fetch_histdata.py 2024 GBPUSD  # other pair
+  python -u fetch_histdata.py                     # 2025 -> now, EURUSD
+  python -u fetch_histdata.py 2023                # 2023 -> now
+  python -u fetch_histdata.py 2024 GBPUSD         # other pair
+  python -u fetch_histdata.py 2025 MAJORS         # all 7 majors
+  python -u fetch_histdata.py 2025 GBPUSD,USDJPY  # comma-separated list
 
 HistData times are EST without daylight saving (fixed UTC-5); converted to UTC here.
 Past years come as one yearly file, the current year as monthly files.
@@ -27,11 +29,12 @@ from pathlib import Path
 import pandas as pd
 
 START_YEAR = int(sys.argv[1]) if len(sys.argv) > 1 else 2025
-PAIR = sys.argv[2].upper() if len(sys.argv) > 2 else "EURUSD"
+MAJORS = ["EURUSD", "GBPUSD", "USDJPY", "USDCHF", "AUDUSD", "USDCAD", "NZDUSD"]
+ARG = sys.argv[2].upper() if len(sys.argv) > 2 else "EURUSD"
+PAIRS = MAJORS if ARG in ("MAJORS", "ALL") else [p.strip() for p in ARG.split(",") if p.strip()]
+PAIR = PAIRS[0]
 PAGE = "https://www.histdata.com/download-free-forex-historical-data/?/ascii/1-minute-bar-quotes/{p}/{period}"
 GET = "https://www.histdata.com/get.php"
-OUT = Path("data") / PAIR / "5m"
-OUT1 = Path("data") / PAIR / "1m_histdata"
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
 
 opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
@@ -72,6 +75,7 @@ def fetch(year, month=None):
 
 
 def save_1m(m1):
+    OUT1 = Path("data") / PAIR / "1m_histdata"
     OUT1.mkdir(parents=True, exist_ok=True)
     for (y, mo), part in m1.groupby([m1.index.year, m1.index.month]):
         path = OUT1 / f"{y}-{mo:02d}.csv"
@@ -86,6 +90,7 @@ def save_1m(m1):
 def save(m1):
     m1 = m1[~m1.index.duplicated(keep="last")].sort_index()
     save_1m(m1)
+    OUT = Path("data") / PAIR / "5m"
     m5 = m1.resample("5min").agg({"Open": "first", "High": "max", "Low": "min", "Close": "last", "Volume": "sum"}).dropna()
     OUT.mkdir(parents=True, exist_ok=True)
     for year, part in m5.groupby(m5.index.year):
@@ -100,6 +105,21 @@ def save(m1):
 
 
 def main():
+    global PAIR
+    failed = []
+    for PAIR in PAIRS:
+        try:
+            run_pair()
+        except SystemExit as e:
+            log(f"{PAIR}: {e}")
+            failed.append(PAIR)
+    if failed:
+        log(f"Pairs with no data: {', '.join(failed)}")
+    if len(failed) == len(PAIRS):
+        sys.exit("No data downloaded for any pair")
+
+
+def run_pair():
     now = datetime.now(timezone.utc)
     jobs = [(y, None) for y in range(START_YEAR, now.year)] + [(now.year, mo) for mo in range(1, now.month + 1)]
     log(f"{PAIR}: {len(jobs)} downloads from {START_YEAR}")
