@@ -1,8 +1,8 @@
-name: Backfill 5m OHLC (Dukascopy)
+name: Backfill 5m OHLC (HistData)
 on:
   workflow_dispatch:
     inputs:
-      days: {description: "Days of history", default: "365"}
+      start_year: {description: "Start year", default: "2025"}
       pair: {description: "Pair", default: "EURUSD"}
 permissions: {contents: write}
 concurrency: {group: collect, cancel-in-progress: false}
@@ -15,7 +15,7 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: "3.12"}
       - run: pip install pandas
-      - run: python fetch_dukascopy.py ${{ inputs.days }} ${{ inputs.pair }}
+      - run: python -u fetch_histdata.py ${{ inputs.start_year }} ${{ inputs.pair }}
       - run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
