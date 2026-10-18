@@ -11,9 +11,10 @@ Usage:
 HistData times are EST without daylight saving (fixed UTC-5); converted to UTC here.
 Past years come as one yearly file, the current year as monthly files.
 
-Output (UTC timestamps, merged into existing files, safe to re-run):
-  data/<PAIR>/5m/YYYY.csv              Datetime,Open,High,Low,Close,Volume
-  data/<PAIR>/1m_histdata/YYYY-MM.csv  same columns, 1-minute (build any timeframe from these)
+Output (UTC timestamps, gzip-compressed, merged into existing files, safe to re-run):
+  data/<PAIR>/5m/YYYY.csv.gz              Datetime,Open,High,Low,Close,Volume
+  data/<PAIR>/1m_histdata/YYYY-MM.csv.gz  same columns, 1-minute (build any timeframe from these)
+Older uncompressed .csv files for the same period are merged in and then removed.
 """
 
 import http.cookiejar
@@ -74,16 +75,24 @@ def fetch(year, month=None):
     return df.set_index("Datetime")
 
 
+def merge_write(path, part):
+    """Merge with an existing .csv.gz (or old plain .csv) at this path, write .csv.gz, drop the old .csv."""
+    gz = path.with_suffix(".csv.gz")
+    for old_path in (gz, path):
+        if old_path.exists():
+            old = pd.read_csv(old_path, parse_dates=["Datetime"])
+            part = pd.concat([old, part]).drop_duplicates("Datetime", keep="last").sort_values("Datetime")
+    part.to_csv(gz, index=False, date_format="%Y-%m-%d %H:%M:%S", compression="gzip")
+    if path.exists():
+        path.unlink()
+    return part
+
+
 def save_1m(m1):
     OUT1 = Path("data") / PAIR / "1m_histdata"
     OUT1.mkdir(parents=True, exist_ok=True)
     for (y, mo), part in m1.groupby([m1.index.year, m1.index.month]):
-        path = OUT1 / f"{y}-{mo:02d}.csv"
-        part = part.reset_index()
-        if path.exists():
-            old = pd.read_csv(path, parse_dates=["Datetime"])
-            part = pd.concat([old, part]).drop_duplicates("Datetime", keep="last").sort_values("Datetime")
-        part.to_csv(path, index=False, date_format="%Y-%m-%d %H:%M:%S")
+        merge_write(OUT1 / f"{y}-{mo:02d}.csv", part.reset_index())
     log(f"  1-min files saved to {OUT1}")
 
 
@@ -94,14 +103,10 @@ def save(m1):
     m5 = m1.resample("5min").agg({"Open": "first", "High": "max", "Low": "min", "Close": "last", "Volume": "sum"}).dropna()
     OUT.mkdir(parents=True, exist_ok=True)
     for year, part in m5.groupby(m5.index.year):
-        path = OUT / f"{year}.csv"
         part = part.reset_index()
-        if path.exists():
-            old = pd.read_csv(path, parse_dates=["Datetime"])
-            part = pd.concat([old, part]).drop_duplicates("Datetime", keep="last").sort_values("Datetime")
         part[["Open", "High", "Low", "Close"]] = part[["Open", "High", "Low", "Close"]].round(6)
-        part.to_csv(path, index=False, date_format="%Y-%m-%d %H:%M:%S")
-        log(f"  {path}: {len(part)} rows, {part.Datetime.min()} -> {part.Datetime.max()}")
+        part = merge_write(OUT / f"{year}.csv", part)
+        log(f"  {OUT}/{year}.csv.gz: {len(part)} rows, {part.Datetime.min()} -> {part.Datetime.max()}")
 
 
 def main():
