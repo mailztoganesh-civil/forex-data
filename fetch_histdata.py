@@ -10,7 +10,8 @@ HistData times are EST without daylight saving (fixed UTC-5); converted to UTC h
 Past years come as one yearly file, the current year as monthly files.
 
 Output (UTC timestamps, merged into existing files, safe to re-run):
-  data/<PAIR>/5m/YYYY.csv   Datetime,Open,High,Low,Close,Volume
+  data/<PAIR>/5m/YYYY.csv              Datetime,Open,High,Low,Close,Volume
+  data/<PAIR>/1m_histdata/YYYY-MM.csv  same columns, 1-minute (build any timeframe from these)
 """
 
 import http.cookiejar
@@ -30,6 +31,7 @@ PAIR = sys.argv[2].upper() if len(sys.argv) > 2 else "EURUSD"
 PAGE = "https://www.histdata.com/download-free-forex-historical-data/?/ascii/1-minute-bar-quotes/{p}/{period}"
 GET = "https://www.histdata.com/get.php"
 OUT = Path("data") / PAIR / "5m"
+OUT1 = Path("data") / PAIR / "1m_histdata"
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
 
 opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
@@ -69,8 +71,21 @@ def fetch(year, month=None):
     return df.set_index("Datetime")
 
 
+def save_1m(m1):
+    OUT1.mkdir(parents=True, exist_ok=True)
+    for (y, mo), part in m1.groupby([m1.index.year, m1.index.month]):
+        path = OUT1 / f"{y}-{mo:02d}.csv"
+        part = part.reset_index()
+        if path.exists():
+            old = pd.read_csv(path, parse_dates=["Datetime"])
+            part = pd.concat([old, part]).drop_duplicates("Datetime", keep="last").sort_values("Datetime")
+        part.to_csv(path, index=False, date_format="%Y-%m-%d %H:%M:%S")
+    log(f"  1-min files saved to {OUT1}")
+
+
 def save(m1):
     m1 = m1[~m1.index.duplicated(keep="last")].sort_index()
+    save_1m(m1)
     m5 = m1.resample("5min").agg({"Open": "first", "High": "max", "Low": "min", "Close": "last", "Volume": "sum"}).dropna()
     OUT.mkdir(parents=True, exist_ok=True)
     for year, part in m5.groupby(m5.index.year):
