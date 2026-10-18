@@ -1,0 +1,23 @@
+name: Backfill 5m OHLC (Dukascopy)
+on:
+  workflow_dispatch:
+    inputs:
+      days: {description: "Days of history", default: "365"}
+      pair: {description: "Pair", default: "EURUSD"}
+permissions: {contents: write}
+concurrency: {group: collect, cancel-in-progress: false}
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install pandas
+      - run: python fetch_dukascopy.py ${{ inputs.days }} ${{ inputs.pair }}
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data
+          git diff --cached --quiet && echo "No new data" || (git commit -m "5m backfill ${{ inputs.pair }} $(date -u +%Y-%m-%d)" && git pull --rebase && git push)
