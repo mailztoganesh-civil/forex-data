@@ -1,0 +1,26 @@
+name: Collect index futures (NQ ES YM 1m)
+on:
+  schedule: [{cron: "41 22 * * 1-5"}]
+  workflow_dispatch: {}
+permissions: {contents: write}
+concurrency: {group: collect, cancel-in-progress: false}
+jobs:
+  futures:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install --upgrade yfinance pandas
+      - name: Fetch
+        run: |
+          f=$(git ls-files | grep -iE 'fetch[ _-]?futures\.(py|txt)$' | head -1)
+          echo "Using $f"
+          python -u "$f"
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data
+          git diff --cached --quiet && echo "No new data" || (git commit -m "Futures 1m $(date -u +%Y-%m-%d)" && git pull --rebase && git push)
