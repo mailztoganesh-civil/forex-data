@@ -11,6 +11,7 @@ import argparse
 from pathlib import Path
 from scripts.stage_b_m15_alignment import align_m15_structure_to_m5
 from scripts.stage_c_liquidity import align_m15_liquidity_to_m5
+from scripts.stage_d_fvg import align_m15_fvg_to_m5
 import numpy as np
 import pandas as pd
 
@@ -66,6 +67,15 @@ def indicators(df, a):
     df["ShortSignal"]=(bear_shift&bear_cross).fillna(False)
     df["MidClose"]=c
     return df
+
+def fvg_allows(side, recent_bullish_retest, recent_bearish_retest):
+    """Longs need bullish FVG rejection; shorts need bearish FVG rejection."""
+    if side == "long":
+        return bool(recent_bullish_retest)
+    if side == "short":
+        return bool(recent_bearish_retest)
+    return False
+
 
 def liquidity_allows(side, recent_sell_sweep, recent_buy_sweep):
     """Longs need a recent sell-side sweep; shorts need a recent buy-side sweep."""
@@ -124,6 +134,10 @@ def run_backtest(df,a):
             if side and getattr(a, "liquidity_filter", False):
                 if not liquidity_allows(side, r.m15_recent_sell_side_sweep,
                                         r.m15_recent_buy_side_sweep):
+                    side = None
+            if side and getattr(a, "fvg_filter", False):
+                if not fvg_allows(side, r.m15_recent_bullish_fvg_retest,
+                                  r.m15_recent_bearish_fvg_retest):
                     side = None
             if side and getattr(a, "structure_filter", False):
                 # Structure is checked at the actual entry bar open. This
@@ -197,6 +211,12 @@ def main():
     p.add_argument("--commission-pips",type=float,default=0.0)
     p.add_argument("--liquidity-recent-bars",type=int,default=3,
                    help="M15 bars after a sweep during which Stage C may confirm an entry")
+    p.add_argument("--fvg-max-age",type=int,default=20,
+                   help="Maximum M15 bars between FVG formation and retest")
+    p.add_argument("--fvg-min-gap-pips",type=float,default=0.0,
+                   help="Minimum FVG width in EURUSD pips")
+    p.add_argument("--fvg-recent-bars",type=int,default=3,
+                   help="M15 bars during which a confirmed FVG retest may confirm entry")
     a=p.parse_args()
     df=pd.read_csv(a.input)
     missing=set(["Datetime",*PRICE])-set(df.columns)
@@ -216,6 +236,14 @@ def main():
     liquidity = align_m15_liquidity_to_m5(df, recent_bars=a.liquidity_recent_bars)
     df = df.merge(liquidity.drop(columns=["Datetime"]), left_index=True,
                   right_index=True, how="left")
+    fvg = align_m15_fvg_to_m5(df, max_age=a.fvg_max_age,
+                              min_gap=a.fvg_min_gap_pips*0.0001,
+                              recent_bars=a.fvg_recent_bars)
+    df = df.merge(fvg.drop(columns=["Datetime"]), left_index=True,
+                  right_index=True, how="left")
+    for col in ["m15_bullish_fvg_retest", "m15_bearish_fvg_retest",
+                "m15_recent_bullish_fvg_retest", "m15_recent_bearish_fvg_retest"]:
+        df[col] = df[col].fillna(False).astype(bool)
     for col in ["m15_sell_side_sweep", "m15_buy_side_sweep",
                 "m15_recent_sell_side_sweep", "m15_recent_buy_side_sweep"]:
         df[col] = df[col].fillna(False).astype(bool)
@@ -225,16 +253,19 @@ def main():
     out=Path(a.out); out.mkdir(parents=True,exist_ok=True)
     results=[]
     variants = [
-        ("A_BASELINE", False, False),
-        ("A_PLUS_B_M15", True, False),
-        ("A_PLUS_C_LIQUIDITY", False, True),
-        ("A_PLUS_B_PLUS_C", True, True),
+        ("A_BASELINE", False, False, False),
+        ("A_PLUS_B_M15", True, False, False),
+        ("A_PLUS_C_LIQUIDITY", False, True, False),
+        ("A_PLUS_B_PLUS_C", True, True, False),
+        ("A_PLUS_D_FVG", False, False, True),
+        ("A_PLUS_B_PLUS_C_PLUS_D", True, True, True),
     ]
-    for variant, use_structure, use_liquidity in variants:
+    for variant, use_structure, use_liquidity, use_fvg in variants:
         for label,start,end in [("IS_2021_2024","2021-01-01","2024-12-31"),("OOS_2025_2026","2025-01-01",a.end)]:
             aa=argparse.Namespace(**vars(a)); aa.start=start; aa.end=end
             aa.structure_filter=use_structure
             aa.liquidity_filter=use_liquidity
+            aa.fvg_filter=use_fvg
             trades,summary=run_backtest(df,aa)
             trades.to_csv(out/f"{variant.lower()}_{label.lower()}_trades.csv",index=False)
             period_start = pd.Timestamp(start, tz="UTC")
