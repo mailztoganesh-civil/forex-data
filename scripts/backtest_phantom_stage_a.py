@@ -66,6 +66,15 @@ def indicators(df, a):
     df["MidClose"]=c
     return df
 
+def structure_allows(side, direction):
+    """Allow entries only when confirmed M15 direction agrees with the trade."""
+    if side == "long":
+        return int(direction) > 0
+    if side == "short":
+        return int(direction) < 0
+    return False
+
+
 def run_backtest(df,a):
     start=pd.Timestamp(a.start,tz="UTC")
     end=pd.Timestamp(a.end,tz="UTC")+pd.Timedelta(days=1)
@@ -100,8 +109,7 @@ def run_backtest(df,a):
         if pos is None and np.isfinite(prev.ATR) and prev.ATR>0:
             side="long" if prev.LongSignal else ("short" if prev.ShortSignal else None)
             if side and getattr(a, "structure_filter", False):
-                direction = int(prev.m15_structure_direction)
-                if (side == "long" and direction <= 0) or (side == "short" and direction >= 0):
+                if not structure_allows(side, prev.m15_structure_direction):
                     side = None
             if side:
                 entry=(r.AskOpen+slip) if side=="long" else (r.BidOpen-slip)
