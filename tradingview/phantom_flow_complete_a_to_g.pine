@@ -41,8 +41,9 @@ osc = ta.ema(oscRaw, smooth)
 aLong = barstate.isconfirmed and stDir < 0 and stDir[1] > 0 and ta.crossover(osc, threshold)
 aShort = barstate.isconfirmed and stDir > 0 and stDir[1] < 0 and ta.crossunder(osc, -threshold)
 
-// ── B: M15 confirmed pivot structure. State is evaluated in the M15 context.
-f_structure() =>
+// ── B: M15 confirmed pivot structure. Separate scalar functions keep
+// request.security expressions unambiguous and use only closed M15 candles.
+f_structure_bias() =>
     ph = ta.pivothigh(high, pivotLeft, pivotRight)
     pl = ta.pivotlow(low, pivotLeft, pivotRight)
     var float swingH = na
@@ -56,85 +57,113 @@ f_structure() =>
     if not na(pl)
         swingL := pl
         lDone := false
-    up = barstate.isconfirmed and not na(swingH) and not hDone and close > swingH
-    dn = barstate.isconfirmed and not na(swingL) and not lDone and close < swingL
+    up = not na(swingH) and not hDone and close > swingH
+    dn = not na(swingL) and not lDone and close < swingL
     if up
         hDone := true
         bias := 1
     if dn
         lDone := true
         bias := -1
-    [bias, up, dn]
-[m15BiasClosed, m15BosUpClosed, m15BosDnClosed] = request.security(syminfo.tickerid, "15", f_structure()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+    bias
+f_bos_up() =>
+    ph = ta.pivothigh(high, pivotLeft, pivotRight)
+    var float swingH = na
+    var bool done = false
+    if not na(ph)
+        swingH := ph
+        done := false
+    event = not na(swingH) and not done and close > swingH
+    if event
+        done := true
+    event
+f_bos_dn() =>
+    pl = ta.pivotlow(low, pivotLeft, pivotRight)
+    var float swingL = na
+    var bool done = false
+    if not na(pl)
+        swingL := pl
+        done := false
+    event = not na(swingL) and not done and close < swingL
+    if event
+        done := true
+    event
+m15BiasClosed = request.security(syminfo.tickerid, "15", f_structure_bias()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+m15BosUpClosed = request.security(syminfo.tickerid, "15", f_bos_up()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+m15BosDnClosed = request.security(syminfo.tickerid, "15", f_bos_dn()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
 
-// ── C: M15 sweep and close-back-inside; published only after M15 close.
-f_liquidity() =>
+// ── C: M15 sweep and close-back-inside; published after M15 close.
+f_sell_sweep() =>
     priorLow = ta.lowest(low[1], liqLookback)
+    low < priorLow and close > priorLow
+f_buy_sweep() =>
     priorHigh = ta.highest(high[1], liqLookback)
-    [barstate.isconfirmed and low < priorLow and close > priorLow,
-     barstate.isconfirmed and high > priorHigh and close < priorHigh]
-[m15SellSweep, m15BuySweep] = request.security(syminfo.tickerid, "15", f_liquidity()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+    high > priorHigh and close < priorHigh
+m15SellSweep = request.security(syminfo.tickerid, "15", f_sell_sweep()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+m15BuySweep = request.security(syminfo.tickerid, "15", f_buy_sweep()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
 recentSellSweep = ta.barssince(m15SellSweep) <= 3
 recentBuySweep = ta.barssince(m15BuySweep) <= 3
 
 // ── D: M15 FVG formation and later retest of the zone.
-f_fvg() =>
-    bullForm = barstate.isconfirmed and low > high[2]
-    bearForm = barstate.isconfirmed and high < low[2]
-    var float bullTop = na
-    var float bullBot = na
-    var int bullAt = na
-    var float bearTop = na
-    var float bearBot = na
-    var int bearAt = na
+f_bull_fvg_retest() =>
+    bullForm = low > high[2]
+    var float zoneTop = na
+    var float zoneBot = na
+    var int formedAt = na
     if bullForm
-        bullTop := low
-        bullBot := high[2]
-        bullAt := bar_index
+        zoneTop := low
+        zoneBot := high[2]
+        formedAt := bar_index
+    not na(formedAt) and bar_index > formedAt and bar_index - formedAt <= fvgAge and low <= zoneTop and close > (zoneTop + zoneBot) / 2
+f_bear_fvg_retest() =>
+    bearForm = high < low[2]
+    var float zoneTop = na
+    var float zoneBot = na
+    var int formedAt = na
     if bearForm
-        bearTop := low[2]
-        bearBot := high
-        bearAt := bar_index
-    bullRetest = not na(bullAt) and bar_index > bullAt and bar_index - bullAt <= fvgAge and low <= bullTop and close > (bullTop + bullBot) / 2
-    bearRetest = not na(bearAt) and bar_index > bearAt and bar_index - bearAt <= fvgAge and high >= bearBot and close < (bearTop + bearBot) / 2
-    [bullRetest, bearRetest]
-[m15BullFvg, m15BearFvg] = request.security(syminfo.tickerid, "15", f_fvg()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+        zoneTop := low[2]
+        zoneBot := high
+        formedAt := bar_index
+    not na(formedAt) and bar_index > formedAt and bar_index - formedAt <= fvgAge and high >= zoneBot and close < (zoneTop + zoneBot) / 2
+m15BullFvg = request.security(syminfo.tickerid, "15", f_bull_fvg_retest()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+m15BearFvg = request.security(syminfo.tickerid, "15", f_bear_fvg_retest()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
 recentBullFvg = ta.barssince(m15BullFvg) <= 3
 recentBearFvg = ta.barssince(m15BearFvg) <= 3
 
-// ── E: M15 displacement candle creates an OB from the last opposing candle.
-// Zone retest must occur on a later M15 bar and close beyond its midpoint.
-f_ob() =>
+// ── E: M15 displacement creates an OB from the prior opposing candle.
+f_bull_ob_retest() =>
     atrOb = ta.atr(obAtrLen)
-    bullImpulse = barstate.isconfirmed and close > ta.highest(high[1], obLookback) and close > open and math.abs(close-open) >= atrOb * obDisp
-    bearImpulse = barstate.isconfirmed and close < ta.lowest(low[1], obLookback) and close < open and math.abs(close-open) >= atrOb * obDisp
-    var float bullTop = na
-    var float bullBot = na
-    var int bullAt = na
-    var float bearTop = na
-    var float bearBot = na
-    var int bearAt = na
-    if bullImpulse and close[1] < open[1]
-        bullTop := open[1]
-        bullBot := low[1]
-        bullAt := bar_index
-    if bearImpulse and close[1] > open[1]
-        bearTop := high[1]
-        bearBot := open[1]
-        bearAt := bar_index
-    bullRetest = not na(bullAt) and bar_index > bullAt and bar_index - bullAt <= obAge and low <= bullTop and close > (bullTop+bullBot)/2
-    bearRetest = not na(bearAt) and bar_index > bearAt and bar_index - bearAt <= obAge and high >= bearBot and close < (bearTop+bearBot)/2
-    [bullRetest, bearRetest]
-[m15BullOb, m15BearOb] = request.security(syminfo.tickerid, "15", f_ob()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+    impulse = close > ta.highest(high[1], obLookback) and close > open and math.abs(close-open) >= atrOb * obDisp
+    var float zoneTop = na
+    var float zoneBot = na
+    var int formedAt = na
+    if impulse and close[1] < open[1]
+        zoneTop := open[1]
+        zoneBot := low[1]
+        formedAt := bar_index
+    not na(formedAt) and bar_index > formedAt and bar_index - formedAt <= obAge and low <= zoneTop and close > (zoneTop + zoneBot) / 2
+f_bear_ob_retest() =>
+    atrOb = ta.atr(obAtrLen)
+    impulse = close < ta.lowest(low[1], obLookback) and close < open and math.abs(close-open) >= atrOb * obDisp
+    var float zoneTop = na
+    var float zoneBot = na
+    var int formedAt = na
+    if impulse and close[1] > open[1]
+        zoneTop := high[1]
+        zoneBot := open[1]
+        formedAt := bar_index
+    not na(formedAt) and bar_index > formedAt and bar_index - formedAt <= obAge and high >= zoneBot and close < (zoneTop + zoneBot) / 2
+m15BullOb = request.security(syminfo.tickerid, "15", f_bull_ob_retest()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+m15BearOb = request.security(syminfo.tickerid, "15", f_bear_ob_retest()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
 recentBullOb = ta.barssince(m15BullOb) <= 3
 recentBearOb = ta.barssince(m15BearOb) <= 3
 
 // ── F: H1 EMA alignment, previous fully closed H1 candle only.
-f_h1() =>
+f_h1_bias() =>
     fast = ta.ema(close, h1Fast)
     slow = ta.ema(close, h1Slow)
     close > fast and fast > slow ? 1 : close < fast and fast < slow ? -1 : 0
-h1Bias = request.security(syminfo.tickerid, "60", f_h1()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+h1Bias = request.security(syminfo.tickerid, "60", f_h1_bias()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
 
 // ── G: directional score. Stage A remains mandatory.
 longStructure = m15BiasClosed == 1
