@@ -40,6 +40,9 @@ jobs:
             --end "${{ inputs.end_date }}" \
             --out data \
             --workers "${{ inputs.workers }}"
+      - name: Audit downloaded M5 data quality
+        if: always()
+        run: python scripts/audit_m5_data_quality.py --input-dir data/EURUSD/5m
       - name: Upload data and quality report
         if: always()
         uses: actions/upload-artifact@v4
