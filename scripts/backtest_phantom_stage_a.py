@@ -12,6 +12,7 @@ from pathlib import Path
 from scripts.stage_b_m15_alignment import align_m15_structure_to_m5
 from scripts.stage_c_liquidity import align_m15_liquidity_to_m5
 from scripts.stage_d_fvg import align_m15_fvg_to_m5
+from scripts.stage_e_order_block import align_m15_order_blocks_to_m5
 import numpy as np
 import pandas as pd
 
@@ -67,6 +68,15 @@ def indicators(df, a):
     df["ShortSignal"]=(bear_shift&bear_cross).fillna(False)
     df["MidClose"]=c
     return df
+
+def order_block_allows(side, recent_bullish_retest, recent_bearish_retest):
+    """Longs need bullish OB rejection; shorts need bearish OB rejection."""
+    if side == "long":
+        return bool(recent_bullish_retest)
+    if side == "short":
+        return bool(recent_bearish_retest)
+    return False
+
 
 def fvg_allows(side, recent_bullish_retest, recent_bearish_retest):
     """Longs need bullish FVG rejection; shorts need bearish FVG rejection."""
@@ -134,6 +144,10 @@ def run_backtest(df,a):
             if side and getattr(a, "liquidity_filter", False):
                 if not liquidity_allows(side, r.m15_recent_sell_side_sweep,
                                         r.m15_recent_buy_side_sweep):
+                    side = None
+            if side and getattr(a, "order_block_filter", False):
+                if not order_block_allows(side, r.m15_recent_bullish_ob_retest,
+                                          r.m15_recent_bearish_ob_retest):
                     side = None
             if side and getattr(a, "fvg_filter", False):
                 if not fvg_allows(side, r.m15_recent_bullish_fvg_retest,
@@ -217,6 +231,13 @@ def main():
                    help="Minimum FVG width in EURUSD pips")
     p.add_argument("--fvg-recent-bars",type=int,default=3,
                    help="M15 bars during which a confirmed FVG retest may confirm entry")
+    p.add_argument("--ob-lookback",type=int,default=8,
+                   help="M15 bars searched for the last opposing order-block candle")
+    p.add_argument("--ob-atr-period",type=int,default=14)
+    p.add_argument("--ob-displacement-atr",type=float,default=1.0,
+                   help="Minimum impulse body in ATR multiples")
+    p.add_argument("--ob-max-age",type=int,default=20)
+    p.add_argument("--ob-recent-bars",type=int,default=3)
     a=p.parse_args()
     df=pd.read_csv(a.input)
     missing=set(["Datetime",*PRICE])-set(df.columns)
@@ -241,6 +262,14 @@ def main():
                               recent_bars=a.fvg_recent_bars)
     df = df.merge(fvg.drop(columns=["Datetime"]), left_index=True,
                   right_index=True, how="left")
+    ob = align_m15_order_blocks_to_m5(df, lookback=a.ob_lookback,
+        atr_period=a.ob_atr_period, displacement_atr=a.ob_displacement_atr,
+        max_age=a.ob_max_age, recent_bars=a.ob_recent_bars)
+    df = df.merge(ob.drop(columns=["Datetime"]), left_index=True,
+                  right_index=True, how="left")
+    for col in ["m15_bullish_ob_retest", "m15_bearish_ob_retest",
+                "m15_recent_bullish_ob_retest", "m15_recent_bearish_ob_retest"]:
+        df[col] = df[col].fillna(False).astype(bool)
     for col in ["m15_bullish_fvg_retest", "m15_bearish_fvg_retest",
                 "m15_recent_bullish_fvg_retest", "m15_recent_bearish_fvg_retest"]:
         df[col] = df[col].fillna(False).astype(bool)
@@ -253,19 +282,22 @@ def main():
     out=Path(a.out); out.mkdir(parents=True,exist_ok=True)
     results=[]
     variants = [
-        ("A_BASELINE", False, False, False),
-        ("A_PLUS_B_M15", True, False, False),
-        ("A_PLUS_C_LIQUIDITY", False, True, False),
-        ("A_PLUS_B_PLUS_C", True, True, False),
-        ("A_PLUS_D_FVG", False, False, True),
-        ("A_PLUS_B_PLUS_C_PLUS_D", True, True, True),
+        ("A_BASELINE", False, False, False, False),
+        ("A_PLUS_B_M15", True, False, False, False),
+        ("A_PLUS_C_LIQUIDITY", False, True, False, False),
+        ("A_PLUS_B_PLUS_C", True, True, False, False),
+        ("A_PLUS_D_FVG", False, False, True, False),
+        ("A_PLUS_B_PLUS_C_PLUS_D", True, True, True, False),
+        ("A_PLUS_E_ORDER_BLOCK", False, False, False, True),
+        ("A_PLUS_B_PLUS_C_PLUS_D_PLUS_E", True, True, True, True),
     ]
-    for variant, use_structure, use_liquidity, use_fvg in variants:
+    for variant, use_structure, use_liquidity, use_fvg, use_ob in variants:
         for label,start,end in [("IS_2021_2024","2021-01-01","2024-12-31"),("OOS_2025_2026","2025-01-01",a.end)]:
             aa=argparse.Namespace(**vars(a)); aa.start=start; aa.end=end
             aa.structure_filter=use_structure
             aa.liquidity_filter=use_liquidity
             aa.fvg_filter=use_fvg
+            aa.order_block_filter=use_ob
             trades,summary=run_backtest(df,aa)
             trades.to_csv(out/f"{variant.lower()}_{label.lower()}_trades.csv",index=False)
             period_start = pd.Timestamp(start, tz="UTC")
