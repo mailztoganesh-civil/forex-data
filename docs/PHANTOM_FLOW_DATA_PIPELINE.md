@@ -9,13 +9,20 @@ not implement Phantom Flow signals or report trading performance.
 - Spread OHLC fields are derived from corresponding ASK and BID OHLC values.
   They are approximations, not tick-level spread or execution reconstruction.
 - M5 bars are aggregated from available minute records; partial five-minute
-  groups are not yet rejected. Review the quality report before backtesting.
+  groups are not yet rejected. The audit therefore exports a conservative
+  `tradable_m5_bars.csv` candidate file, excluding flat/zero-volume bars,
+  invalid OHLC, misaligned or duplicate timestamps, and crossed BID/ASK OHLC.
+  This filter does not prove every surviving bar is complete or executable;
+  inspect the audit and validate the aggregation before performance claims.
 - Indicative Dukascopy data is not necessarily identical to a broker's feed.
   Commission, latency, slippage, and stop/limit intrabar ordering need explicit
   modelling in a later backtester.
 - The date ledger marks a day complete even if the feed returns no paired bars.
   Inspect the quality report and remove that date from
   `data/EURUSD/5m/download_ledger.json` to retry it.
+- `tradable_m5_bars.csv` is a derived research input; annual raw CSV files are
+  preserved unchanged. The daily audit distinguishes clean active days from
+  days with actual intraday gaps; UTC date boundaries are not counted as gaps.
 - The workflow uploads artifacts with a 30-day retention period; it does not
   commit large market-data files into the repository.
 
@@ -23,7 +30,8 @@ not implement Phantom Flow signals or report trading performance.
 
 Open **Actions → EURUSD BID-ASK M5 Data Backfill → Run workflow**.
 Start with a small range such as 2021-01-01 through 2021-01-07. Inspect the
-artifact's yearly CSV, ledger, and data quality report before larger downloads.
+artifact's yearly CSV, ledger, daily audit, flagged rows, and filtered
+`tradable_m5_bars.csv` before larger downloads.
 
 ## Research plan after data validation
 
