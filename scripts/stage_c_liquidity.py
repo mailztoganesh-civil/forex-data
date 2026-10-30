@@ -84,16 +84,17 @@ def align_m15_liquidity_to_m5(df, left_bars=3, right_bars=3, recent_bars=3):
         for _, seg in m15.groupby("segment", sort=False):
             ev = liquidity_sweep_events(seg.high, seg.low, seg.close,
                                         left_bars, right_bars)
-            part = seg[["slot", "m15_close_time"]].copy()
+            part = seg[["slot", "m15_close_time", "segment"]].copy()
             part["m15_sell_side_sweep"] = ev.sell_side_sweep.to_numpy()
             part["m15_buy_side_sweep"] = ev.buy_side_sweep.to_numpy()
             events.append(part)
     if events:
         right = pd.concat(events, ignore_index=True).sort_values("m15_close_time")
-        right["m15_recent_sell_side_sweep"] = (
-            right.m15_sell_side_sweep.rolling(recent_bars, min_periods=1).max().astype(bool))
-        right["m15_recent_buy_side_sweep"] = (
-            right.m15_buy_side_sweep.rolling(recent_bars, min_periods=1).max().astype(bool))
+        right["m15_recent_sell_side_sweep"] = right.groupby("segment").m15_sell_side_sweep.transform(
+            lambda s: s.rolling(recent_bars, min_periods=1).max()).astype(bool)
+        right["m15_recent_buy_side_sweep"] = right.groupby("segment").m15_buy_side_sweep.transform(
+            lambda s: s.rolling(recent_bars, min_periods=1).max()).astype(bool)
+        right = right.drop(columns="segment")
         left = x[["Datetime"]].sort_values("Datetime")
         out = pd.merge_asof(left, right.drop(columns="slot"),
                             left_on="Datetime", right_on="m15_close_time",
