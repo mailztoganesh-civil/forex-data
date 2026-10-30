@@ -30,8 +30,11 @@ def order_block_retest_events(open_, high, low, close, lookback=8,
     atr=tr.ewm(alpha=1/atr_period,adjust=False,min_periods=atr_period).mean()
     prior_high=h.shift(1).rolling(lookback,min_periods=lookback).max()
     prior_low=l.shift(1).rolling(lookback,min_periods=lookback).min()
-    out=pd.DataFrame({"bullish_ob_retest":False,"bearish_ob_retest":False,
-                      "ob_lower":np.nan,"ob_upper":np.nan,"ob_age":np.nan})
+    out=pd.DataFrame({"bullish_ob_retest":np.zeros(len(c), dtype=bool),
+                      "bearish_ob_retest":np.zeros(len(c), dtype=bool),
+                      "ob_lower":np.full(len(c), np.nan),
+                      "ob_upper":np.full(len(c), np.nan),
+                      "ob_age":np.full(len(c), np.nan)})
     zones=[]
     for i in range(len(c)):
         active=[]
