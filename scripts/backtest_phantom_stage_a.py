@@ -188,6 +188,8 @@ def main():
     df["Datetime"]=pd.to_datetime(df.Datetime,utc=True,errors="coerce")
     for c in PRICE: df[c]=pd.to_numeric(df[c],errors="coerce")
     df=df.dropna(subset=["Datetime",*PRICE]).sort_values("Datetime").drop_duplicates("Datetime").reset_index(drop=True)
+    source_start = df.Datetime.min()
+    source_end = df.Datetime.max()
     df=indicators(df,a)
     # Compute confirmed M15 structure once on the full chronological dataset,
     # then make it available only to M5 bars opening at/after M15 close.
@@ -206,7 +208,21 @@ def main():
             aa.structure_filter=use_filter
             trades,summary=run_backtest(df,aa)
             trades.to_csv(out/f"{variant.lower()}_{label.lower()}_trades.csv",index=False)
-            results.append({"variant":variant,"period":label,**summary})
+            period_start = pd.Timestamp(start, tz="UTC")
+            period_end = pd.Timestamp(end, tz="UTC") + pd.Timedelta(days=1) - pd.Timedelta(nanoseconds=1)
+            available = df[(df.Datetime >= period_start) & (df.Datetime <= period_end)]
+            coverage_start = available.Datetime.min() if not available.empty else pd.NaT
+            coverage_end = available.Datetime.max() if not available.empty else pd.NaT
+            coverage_complete = bool(
+                not available.empty and coverage_start <= period_start + pd.Timedelta(days=1)
+                and coverage_end >= period_end - pd.Timedelta(days=1)
+            )
+            results.append({"variant":variant,"period":label,
+                            "input_coverage_start_utc":source_start,
+                            "input_coverage_end_utc":source_end,
+                            "period_coverage_start_utc":coverage_start,
+                            "period_coverage_end_utc":coverage_end,
+                            "period_coverage_complete":coverage_complete,**summary})
     summary_df=pd.DataFrame(results)
     summary_df.to_csv(out/"comparison_summary.csv",index=False)
     print(summary_df.to_string(index=False))
