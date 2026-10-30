@@ -13,6 +13,7 @@ from scripts.stage_b_m15_alignment import align_m15_structure_to_m5
 from scripts.stage_c_liquidity import align_m15_liquidity_to_m5
 from scripts.stage_d_fvg import align_m15_fvg_to_m5
 from scripts.stage_e_order_block import align_m15_order_blocks_to_m5
+from scripts.stage_f_multitimeframe import align_h1_bias_to_m5
 import numpy as np
 import pandas as pd
 
@@ -95,6 +96,14 @@ def order_block_allows(side, recent_bullish_retest, recent_bearish_retest):
     return False
 
 
+def h1_allows(side, direction):
+    if side == "long":
+        return int(direction) > 0
+    if side == "short":
+        return int(direction) < 0
+    return False
+
+
 def structure_allows(side, direction):
     """Allow entries only when confirmed M15 direction agrees with the trade."""
     if side == "long":
@@ -151,6 +160,9 @@ def run_backtest(df,a):
             if side and getattr(a, "order_block_filter", False):
                 if not order_block_allows(side, r.m15_recent_bullish_ob_retest,
                                           r.m15_recent_bearish_ob_retest):
+                    side = None
+            if side and getattr(a, "h1_filter", False):
+                if not h1_allows(side, r.h1_bias_direction):
                     side = None
             if side and getattr(a, "structure_filter", False):
                 # Structure is checked at the actual entry bar open. This
@@ -235,6 +247,8 @@ def main():
     p.add_argument("--ob-displacement-atr",type=float,default=1.0)
     p.add_argument("--ob-max-age",type=int,default=20)
     p.add_argument("--ob-recent-bars",type=int,default=3)
+    p.add_argument("--h1-ema-fast",type=int,default=20)
+    p.add_argument("--h1-ema-slow",type=int,default=50)
     a=p.parse_args()
     df=pd.read_csv(a.input)
     missing=set(["Datetime",*PRICE])-set(df.columns)
@@ -270,6 +284,11 @@ def main():
     for col in ["m15_bullish_ob_retest", "m15_bearish_ob_retest",
                 "m15_recent_bullish_ob_retest", "m15_recent_bearish_ob_retest"]:
         df[col] = df[col].fillna(False).astype(bool)
+    h1 = align_h1_bias_to_m5(df, fast_period=a.h1_ema_fast,
+                             slow_period=a.h1_ema_slow)
+    df = df.merge(h1.drop(columns=["Datetime"]), left_index=True,
+                  right_index=True, how="left")
+    df["h1_bias_direction"] = df["h1_bias_direction"].fillna(0).astype(int)
     for col in ["m15_sell_side_sweep", "m15_buy_side_sweep",
                 "m15_recent_sell_side_sweep", "m15_recent_buy_side_sweep"]:
         df[col] = df[col].fillna(False).astype(bool)
@@ -286,15 +305,19 @@ def main():
         ("A_PLUS_D_FVG", False, False, True, False),
         ("A_PLUS_B_PLUS_C_PLUS_D", True, True, True, False),
         ("A_PLUS_E_ORDER_BLOCK", False, False, False, True),
-        ("A_PLUS_B_PLUS_C_PLUS_D_PLUS_E", True, True, True, True),
+        ("A_PLUS_B_PLUS_C_PLUS_D_PLUS_E", True, True, True, True, False),
+        ("A_PLUS_F_H1_TREND", False, False, False, False, True),
+        ("A_PLUS_B_PLUS_F", True, False, False, False, True),
+        ("A_PLUS_B_PLUS_C_PLUS_D_PLUS_E_PLUS_F", True, True, True, True, True),
     ]
-    for variant, use_structure, use_liquidity, use_fvg, use_ob in variants:
+    for variant, use_structure, use_liquidity, use_fvg, use_ob, use_h1 in variants:
         for label,start,end in [("IS_2021_2024","2021-01-01","2024-12-31"),("OOS_2025_2026","2025-01-01",a.end)]:
             aa=argparse.Namespace(**vars(a)); aa.start=start; aa.end=end
             aa.structure_filter=use_structure
             aa.liquidity_filter=use_liquidity
             aa.fvg_filter=use_fvg
             aa.order_block_filter=use_ob
+            aa.h1_filter=use_h1
             trades,summary=run_backtest(df,aa)
             trades.to_csv(out/f"{variant.lower()}_{label.lower()}_trades.csv",index=False)
             period_start = pd.Timestamp(start, tz="UTC")
