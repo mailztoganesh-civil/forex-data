@@ -109,7 +109,9 @@ def run_backtest(df,a):
         if pos is None and np.isfinite(prev.ATR) and prev.ATR>0:
             side="long" if prev.LongSignal else ("short" if prev.ShortSignal else None)
             if side and getattr(a, "structure_filter", False):
-                if not structure_allows(side, prev.m15_structure_direction):
+                # Structure is checked at the actual entry bar open. This
+                # includes an M15 candle that closed at this exact timestamp.
+                if not structure_allows(side, r.m15_structure_direction):
                     side = None
             if side:
                 entry=(r.AskOpen+slip) if side=="long" else (r.BidOpen-slip)
