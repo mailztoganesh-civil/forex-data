@@ -1,0 +1,230 @@
+//@version=6
+strategy("Phantom Flow Complete A–G | MTF EURUSD Strategy", overlay=true, pyramiding=0,
+     initial_capital=10000, currency=currency.USD, process_orders_on_close=false,
+     commission_type=strategy.commission.cash_per_order, commission_value=0,
+     slippage=2, max_labels_count=500, max_lines_count=500)
+
+// Complete visual implementation of the research modules A–G.
+// A is a transparent ATR-shift + MA-oscillator approximation, not proprietary source.
+// Run on EURUSD M5. Higher-timeframe evidence is taken from the last CLOSED HTF candle.
+
+// ── Inputs
+gRisk = "Execution — risk controls"
+stopATR = input.float(1.5, "Stop distance (ATR)", minval=0.1, step=0.1, group=gRisk)
+rewardRisk = input.float(2.0, "Reward / risk", minval=0.1, step=0.1, group=gRisk)
+gA = "A — Phantom Flow trigger"
+atrLen = input.int(10, "ATR length", minval=1, group=gA)
+factor = input.float(3.0, "ATR shift factor", minval=0.1, step=0.1, group=gA)
+emaLen = input.int(15, "Oscillator EMA", minval=1, group=gA)
+baseLen = input.int(40, "Oscillator baseline SMA", minval=2, group=gA)
+smooth = input.int(3, "Oscillator smoothing", minval=1, group=gA)
+threshold = input.float(0.5, "Oscillator threshold", minval=0, step=0.1, group=gA)
+gB = "B — M15 structure"
+pivotLeft = input.int(3, "Pivot left", minval=1, group=gB)
+pivotRight = input.int(3, "Pivot right", minval=1, group=gB)
+gC = "C — Liquidity"
+liqLookback = input.int(20, "Liquidity lookback", minval=3, group=gC)
+gD = "D — FVG"
+fvgAge = input.int(20, "Maximum FVG age (M15 bars)", minval=1, group=gD)
+gE = "E — Order block"
+obLookback = input.int(8, "Displacement lookback", minval=2, group=gE)
+obAtrLen = input.int(14, "OB ATR length", minval=1, group=gE)
+obDisp = input.float(1.0, "Displacement body / ATR", minval=0.1, step=0.1, group=gE)
+obAge = input.int(20, "Maximum OB age (M15 bars)", minval=1, group=gE)
+gF = "F — H1 trend"
+h1Fast = input.int(20, "H1 EMA fast", minval=1, group=gF)
+h1Slow = input.int(50, "H1 EMA slow", minval=2, group=gF)
+gG = "G — Quality score"
+minScore = input.int(3, "Minimum score (0–6)", minval=0, maxval=6, group=gG)
+showComponents = input.bool(true, "Show B–F confirmation markers", group=gG)
+showSignals = input.bool(true, "Show qualified entries", group=gG)
+
+// ── A: M5 trigger
+[stLine, stDir] = ta.supertrend(factor, atrLen)
+atr = ta.atr(atrLen)
+oscRaw = (ta.ema(close, emaLen) - ta.sma(close, baseLen)) / math.max(atr, syminfo.mintick)
+osc = ta.ema(oscRaw, smooth)
+aLong = barstate.isconfirmed and stDir < 0 and stDir[1] > 0 and ta.crossover(osc, threshold)
+aShort = barstate.isconfirmed and stDir > 0 and stDir[1] < 0 and ta.crossunder(osc, -threshold)
+
+// ── B: M15 confirmed pivot structure. Separate scalar functions keep
+// request.security expressions unambiguous and use only closed M15 candles.
+f_structure_bias() =>
+    ph = ta.pivothigh(high, pivotLeft, pivotRight)
+    pl = ta.pivotlow(low, pivotLeft, pivotRight)
+    var float swingH = na
+    var float swingL = na
+    var bool hDone = false
+    var bool lDone = false
+    var int bias = 0
+    if not na(ph)
+        swingH := ph
+        hDone := false
+    if not na(pl)
+        swingL := pl
+        lDone := false
+    up = not na(swingH) and not hDone and close > swingH
+    dn = not na(swingL) and not lDone and close < swingL
+    if up
+        hDone := true
+        bias := 1
+    if dn
+        lDone := true
+        bias := -1
+    bias
+f_bos_up() =>
+    ph = ta.pivothigh(high, pivotLeft, pivotRight)
+    var float swingH = na
+    var bool done = false
+    if not na(ph)
+        swingH := ph
+        done := false
+    event = not na(swingH) and not done and close > swingH
+    if event
+        done := true
+    event
+f_bos_dn() =>
+    pl = ta.pivotlow(low, pivotLeft, pivotRight)
+    var float swingL = na
+    var bool done = false
+    if not na(pl)
+        swingL := pl
+        done := false
+    event = not na(swingL) and not done and close < swingL
+    if event
+        done := true
+    event
+m15BiasClosed = request.security(syminfo.tickerid, "15", f_structure_bias()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+m15BosUpClosed = request.security(syminfo.tickerid, "15", f_bos_up()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+m15BosDnClosed = request.security(syminfo.tickerid, "15", f_bos_dn()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+
+// ── C: M15 sweep and close-back-inside; published after M15 close.
+f_sell_sweep() =>
+    priorLow = ta.lowest(low[1], liqLookback)
+    low < priorLow and close > priorLow
+f_buy_sweep() =>
+    priorHigh = ta.highest(high[1], liqLookback)
+    high > priorHigh and close < priorHigh
+m15SellSweep = request.security(syminfo.tickerid, "15", f_sell_sweep()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+m15BuySweep = request.security(syminfo.tickerid, "15", f_buy_sweep()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+recentSellSweep = ta.barssince(m15SellSweep) <= 3
+recentBuySweep = ta.barssince(m15BuySweep) <= 3
+
+// ── D: M15 FVG formation and later retest of the zone.
+f_bull_fvg_retest() =>
+    bullForm = low > high[2]
+    var float zoneTop = na
+    var float zoneBot = na
+    var int formedAt = na
+    if bullForm
+        zoneTop := low
+        zoneBot := high[2]
+        formedAt := bar_index
+    not na(formedAt) and bar_index > formedAt and bar_index - formedAt <= fvgAge and low <= zoneTop and close > (zoneTop + zoneBot) / 2
+f_bear_fvg_retest() =>
+    bearForm = high < low[2]
+    var float zoneTop = na
+    var float zoneBot = na
+    var int formedAt = na
+    if bearForm
+        zoneTop := low[2]
+        zoneBot := high
+        formedAt := bar_index
+    not na(formedAt) and bar_index > formedAt and bar_index - formedAt <= fvgAge and high >= zoneBot and close < (zoneTop + zoneBot) / 2
+m15BullFvg = request.security(syminfo.tickerid, "15", f_bull_fvg_retest()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+m15BearFvg = request.security(syminfo.tickerid, "15", f_bear_fvg_retest()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+recentBullFvg = ta.barssince(m15BullFvg) <= 3
+recentBearFvg = ta.barssince(m15BearFvg) <= 3
+
+// ── E: M15 displacement creates an OB from the prior opposing candle.
+f_bull_ob_retest() =>
+    atrOb = ta.atr(obAtrLen)
+    impulse = close > ta.highest(high[1], obLookback) and close > open and math.abs(close-open) >= atrOb * obDisp
+    var float zoneTop = na
+    var float zoneBot = na
+    var int formedAt = na
+    if impulse and close[1] < open[1]
+        zoneTop := open[1]
+        zoneBot := low[1]
+        formedAt := bar_index
+    not na(formedAt) and bar_index > formedAt and bar_index - formedAt <= obAge and low <= zoneTop and close > (zoneTop + zoneBot) / 2
+f_bear_ob_retest() =>
+    atrOb = ta.atr(obAtrLen)
+    impulse = close < ta.lowest(low[1], obLookback) and close < open and math.abs(close-open) >= atrOb * obDisp
+    var float zoneTop = na
+    var float zoneBot = na
+    var int formedAt = na
+    if impulse and close[1] > open[1]
+        zoneTop := high[1]
+        zoneBot := open[1]
+        formedAt := bar_index
+    not na(formedAt) and bar_index > formedAt and bar_index - formedAt <= obAge and high >= zoneBot and close < (zoneTop + zoneBot) / 2
+m15BullOb = request.security(syminfo.tickerid, "15", f_bull_ob_retest()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+m15BearOb = request.security(syminfo.tickerid, "15", f_bear_ob_retest()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+recentBullOb = ta.barssince(m15BullOb) <= 3
+recentBearOb = ta.barssince(m15BearOb) <= 3
+
+// ── F: H1 EMA alignment, previous fully closed H1 candle only.
+f_h1_bias() =>
+    fast = ta.ema(close, h1Fast)
+    slow = ta.ema(close, h1Slow)
+    close > fast and fast > slow ? 1 : close < fast and fast < slow ? -1 : 0
+h1Bias = request.security(syminfo.tickerid, "60", f_h1_bias()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+
+// ── G: directional score. Stage A remains mandatory.
+longStructure = m15BiasClosed == 1
+shortStructure = m15BiasClosed == -1
+longLiq = recentSellSweep
+shortLiq = recentBuySweep
+longScore = (h1Bias == 1 ? 2 : 0) + (longStructure ? 1 : 0) + (longLiq ? 1 : 0) + (recentBullFvg ? 1 : 0) + (recentBullOb ? 1 : 0)
+shortScore = (h1Bias == -1 ? 2 : 0) + (shortStructure ? 1 : 0) + (shortLiq ? 1 : 0) + (recentBearFvg ? 1 : 0) + (recentBearOb ? 1 : 0)
+longQualified = showSignals and aLong and longScore >= minScore
+shortQualified = showSignals and aShort and shortScore >= minScore
+
+plot(stLine, "A — ATR Shift", color=stDir < 0 ? color.lime : color.red, linewidth=2)
+plotshape(showComponents and m15BosUpClosed, "B Bull BOS", shape.labelup, location.belowbar, color=color.green, text="BOS↑", textcolor=color.white, size=size.tiny)
+plotshape(showComponents and m15BosDnClosed, "B Bear BOS", shape.labeldown, location.abovebar, color=color.red, text="BOS↓", textcolor=color.white, size=size.tiny)
+plotshape(showComponents and m15SellSweep, "C Sell-side sweep", shape.circle, location.belowbar, color=color.aqua, text="SSL", size=size.tiny)
+plotshape(showComponents and m15BuySweep, "C Buy-side sweep", shape.circle, location.abovebar, color=color.fuchsia, text="BSL", size=size.tiny)
+plotshape(showComponents and m15BullFvg, "D Bull FVG retest", shape.square, location.belowbar, color=color.teal, text="FVG+", size=size.tiny)
+plotshape(showComponents and m15BearFvg, "D Bear FVG retest", shape.square, location.abovebar, color=color.orange, text="FVG-", size=size.tiny)
+plotshape(showComponents and m15BullOb, "E Bull OB retest", shape.diamond, location.belowbar, color=color.blue, text="OB+", size=size.tiny)
+plotshape(showComponents and m15BearOb, "E Bear OB retest", shape.diamond, location.abovebar, color=color.purple, text="OB-", size=size.tiny)
+plotshape(longQualified, "Phantom Flow BUY", shape.labelup, location.belowbar, color=color.lime, text="BUY", textcolor=color.black)
+plotshape(shortQualified, "Phantom Flow SELL", shape.labeldown, location.abovebar, color=color.red, text="SELL", textcolor=color.white)
+
+if longQualified
+    label.new(bar_index, low, "BUY | Score " + str.tostring(longScore) + "/6", style=label.style_label_up, color=color.lime, textcolor=color.black)
+if shortQualified
+    label.new(bar_index, high, "SELL | Score " + str.tostring(shortScore) + "/6", style=label.style_label_down, color=color.red, textcolor=color.white)
+
+alertcondition(longQualified, "Phantom Flow BUY", "Phantom Flow BUY: Stage A trigger with directional confirmations")
+alertcondition(shortQualified, "Phantom Flow SELL", "Phantom Flow SELL: Stage A trigger with directional confirmations")
+alertcondition(m15BosUpClosed, "M15 Bullish BOS", "Confirmed M15 bullish structure break")
+alertcondition(m15BosDnClosed, "M15 Bearish BOS", "Confirmed M15 bearish structure break")
+alertcondition(m15SellSweep, "M15 Sell-side sweep", "M15 sell-side liquidity sweep and reclaim")
+alertcondition(m15BuySweep, "M15 Buy-side sweep", "M15 buy-side liquidity sweep and reclaim")
+
+// ── Execution: signals are confirmed at close; market orders fill next bar.
+// Stop distance is captured from the signal bar and anchored to actual average fill.
+var float pendingRisk = na
+var float activeStop = na
+var float activeTarget = na
+if longQualified and strategy.position_size == 0
+    pendingRisk := atr * stopATR
+    strategy.entry("PF Long", strategy.long)
+if shortQualified and strategy.position_size == 0
+    pendingRisk := atr * stopATR
+    strategy.entry("PF Short", strategy.short)
+if strategy.position_size > 0 and not na(pendingRisk)
+    activeStop := strategy.position_avg_price - pendingRisk
+    activeTarget := strategy.position_avg_price + pendingRisk * rewardRisk
+    strategy.exit("PF Long Exit", "PF Long", stop=activeStop, limit=activeTarget)
+if strategy.position_size < 0 and not na(pendingRisk)
+    activeStop := strategy.position_avg_price + pendingRisk
+    activeTarget := strategy.position_avg_price - pendingRisk * rewardRisk
+    strategy.exit("PF Short Exit", "PF Short", stop=activeStop, limit=activeTarget)
+if strategy.position_size == 0 and strategy.position_size[1] != 0
+    pendingRisk := na
+    activeStop := na
+    activeTarget := na
