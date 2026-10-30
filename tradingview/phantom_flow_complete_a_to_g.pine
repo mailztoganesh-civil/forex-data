@@ -1,0 +1,171 @@
+//@version=6
+indicator("Phantom Flow Complete A–G | MTF EURUSD", overlay=true, max_labels_count=500, max_lines_count=500)
+
+// Complete visual implementation of the research modules A–G.
+// A is a transparent ATR-shift + MA-oscillator approximation, not proprietary source.
+// Run on EURUSD M5. Higher-timeframe evidence is taken from the last CLOSED HTF candle.
+
+// ── Inputs
+gA = "A — Phantom Flow trigger"
+atrLen = input.int(10, "ATR length", minval=1, group=gA)
+factor = input.float(3.0, "ATR shift factor", minval=0.1, step=0.1, group=gA)
+emaLen = input.int(15, "Oscillator EMA", minval=1, group=gA)
+baseLen = input.int(40, "Oscillator baseline SMA", minval=2, group=gA)
+smooth = input.int(3, "Oscillator smoothing", minval=1, group=gA)
+threshold = input.float(0.5, "Oscillator threshold", minval=0, step=0.1, group=gA)
+gB = "B — M15 structure"
+pivotLeft = input.int(3, "Pivot left", minval=1, group=gB)
+pivotRight = input.int(3, "Pivot right", minval=1, group=gB)
+gC = "C — Liquidity"
+liqLookback = input.int(20, "Liquidity lookback", minval=3, group=gC)
+gD = "D — FVG"
+fvgAge = input.int(20, "Maximum FVG age (M15 bars)", minval=1, group=gD)
+gE = "E — Order block"
+obLookback = input.int(8, "Displacement lookback", minval=2, group=gE)
+obAtrLen = input.int(14, "OB ATR length", minval=1, group=gE)
+obDisp = input.float(1.0, "Displacement body / ATR", minval=0.1, step=0.1, group=gE)
+obAge = input.int(20, "Maximum OB age (M15 bars)", minval=1, group=gE)
+gF = "F — H1 trend"
+h1Fast = input.int(20, "H1 EMA fast", minval=1, group=gF)
+h1Slow = input.int(50, "H1 EMA slow", minval=2, group=gF)
+gG = "G — Quality score"
+minScore = input.int(3, "Minimum score (0–6)", minval=0, maxval=6, group=gG)
+showComponents = input.bool(true, "Show B–F confirmation markers", group=gG)
+showSignals = input.bool(true, "Show qualified entries", group=gG)
+
+// ── A: M5 trigger
+[stLine, stDir] = ta.supertrend(factor, atrLen)
+atr = ta.atr(atrLen)
+oscRaw = (ta.ema(close, emaLen) - ta.sma(close, baseLen)) / math.max(atr, syminfo.mintick)
+osc = ta.ema(oscRaw, smooth)
+aLong = barstate.isconfirmed and stDir < 0 and stDir[1] > 0 and ta.crossover(osc, threshold)
+aShort = barstate.isconfirmed and stDir > 0 and stDir[1] < 0 and ta.crossunder(osc, -threshold)
+
+// ── B: M15 confirmed pivot structure. State is evaluated in the M15 context.
+f_structure() =>
+    ph = ta.pivothigh(high, pivotLeft, pivotRight)
+    pl = ta.pivotlow(low, pivotLeft, pivotRight)
+    var float swingH = na
+    var float swingL = na
+    var bool hDone = false
+    var bool lDone = false
+    var int bias = 0
+    if not na(ph)
+        swingH := ph
+        hDone := false
+    if not na(pl)
+        swingL := pl
+        lDone := false
+    up = barstate.isconfirmed and not na(swingH) and not hDone and close > swingH
+    dn = barstate.isconfirmed and not na(swingL) and not lDone and close < swingL
+    if up
+        hDone := true
+        bias := 1
+    if dn
+        lDone := true
+        bias := -1
+    [bias, up, dn]
+[m15BiasClosed, m15BosUpClosed, m15BosDnClosed] = request.security(syminfo.tickerid, "15", f_structure()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+
+// ── C: M15 sweep and close-back-inside; published only after M15 close.
+f_liquidity() =>
+    priorLow = ta.lowest(low[1], liqLookback)
+    priorHigh = ta.highest(high[1], liqLookback)
+    [barstate.isconfirmed and low < priorLow and close > priorLow,
+     barstate.isconfirmed and high > priorHigh and close < priorHigh]
+[m15SellSweep, m15BuySweep] = request.security(syminfo.tickerid, "15", f_liquidity()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+recentSellSweep = ta.barssince(m15SellSweep) <= 3
+recentBuySweep = ta.barssince(m15BuySweep) <= 3
+
+// ── D: M15 FVG formation and later retest of the zone.
+f_fvg() =>
+    bullForm = barstate.isconfirmed and low > high[2]
+    bearForm = barstate.isconfirmed and high < low[2]
+    var float bullTop = na
+    var float bullBot = na
+    var int bullAt = na
+    var float bearTop = na
+    var float bearBot = na
+    var int bearAt = na
+    if bullForm
+        bullTop := low
+        bullBot := high[2]
+        bullAt := bar_index
+    if bearForm
+        bearTop := low[2]
+        bearBot := high
+        bearAt := bar_index
+    bullRetest = not na(bullAt) and bar_index > bullAt and bar_index - bullAt <= fvgAge and low <= bullTop and close > (bullTop + bullBot) / 2
+    bearRetest = not na(bearAt) and bar_index > bearAt and bar_index - bearAt <= fvgAge and high >= bearBot and close < (bearTop + bearBot) / 2
+    [bullRetest, bearRetest]
+[m15BullFvg, m15BearFvg] = request.security(syminfo.tickerid, "15", f_fvg()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+recentBullFvg = ta.barssince(m15BullFvg) <= 3
+recentBearFvg = ta.barssince(m15BearFvg) <= 3
+
+// ── E: M15 displacement candle creates an OB from the last opposing candle.
+// Zone retest must occur on a later M15 bar and close beyond its midpoint.
+f_ob() =>
+    atrOb = ta.atr(obAtrLen)
+    bullImpulse = barstate.isconfirmed and close > ta.highest(high[1], obLookback) and close > open and math.abs(close-open) >= atrOb * obDisp
+    bearImpulse = barstate.isconfirmed and close < ta.lowest(low[1], obLookback) and close < open and math.abs(close-open) >= atrOb * obDisp
+    var float bullTop = na
+    var float bullBot = na
+    var int bullAt = na
+    var float bearTop = na
+    var float bearBot = na
+    var int bearAt = na
+    if bullImpulse and close[1] < open[1]
+        bullTop := open[1]
+        bullBot := low[1]
+        bullAt := bar_index
+    if bearImpulse and close[1] > open[1]
+        bearTop := high[1]
+        bearBot := open[1]
+        bearAt := bar_index
+    bullRetest = not na(bullAt) and bar_index > bullAt and bar_index - bullAt <= obAge and low <= bullTop and close > (bullTop+bullBot)/2
+    bearRetest = not na(bearAt) and bar_index > bearAt and bar_index - bearAt <= obAge and high >= bearBot and close < (bearTop+bearBot)/2
+    [bullRetest, bearRetest]
+[m15BullOb, m15BearOb] = request.security(syminfo.tickerid, "15", f_ob()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+recentBullOb = ta.barssince(m15BullOb) <= 3
+recentBearOb = ta.barssince(m15BearOb) <= 3
+
+// ── F: H1 EMA alignment, previous fully closed H1 candle only.
+f_h1() =>
+    fast = ta.ema(close, h1Fast)
+    slow = ta.ema(close, h1Slow)
+    close > fast and fast > slow ? 1 : close < fast and fast < slow ? -1 : 0
+h1Bias = request.security(syminfo.tickerid, "60", f_h1()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+
+// ── G: directional score. Stage A remains mandatory.
+longStructure = m15BiasClosed == 1
+shortStructure = m15BiasClosed == -1
+longLiq = recentSellSweep
+shortLiq = recentBuySweep
+longScore = (h1Bias == 1 ? 2 : 0) + (longStructure ? 1 : 0) + (longLiq ? 1 : 0) + (recentBullFvg ? 1 : 0) + (recentBullOb ? 1 : 0)
+shortScore = (h1Bias == -1 ? 2 : 0) + (shortStructure ? 1 : 0) + (shortLiq ? 1 : 0) + (recentBearFvg ? 1 : 0) + (recentBearOb ? 1 : 0)
+longQualified = showSignals and aLong and longScore >= minScore
+shortQualified = showSignals and aShort and shortScore >= minScore
+
+plot(stLine, "A — ATR Shift", color=stDir < 0 ? color.lime : color.red, linewidth=2)
+plotshape(showComponents and m15BosUpClosed, "B Bull BOS", shape.labelup, location.belowbar, color=color.green, text="BOS↑", textcolor=color.white, size=size.tiny)
+plotshape(showComponents and m15BosDnClosed, "B Bear BOS", shape.labeldown, location.abovebar, color=color.red, text="BOS↓", textcolor=color.white, size=size.tiny)
+plotshape(showComponents and m15SellSweep, "C Sell-side sweep", shape.circle, location.belowbar, color=color.aqua, text="SSL", size=size.tiny)
+plotshape(showComponents and m15BuySweep, "C Buy-side sweep", shape.circle, location.abovebar, color=color.fuchsia, text="BSL", size=size.tiny)
+plotshape(showComponents and m15BullFvg, "D Bull FVG retest", shape.square, location.belowbar, color=color.teal, text="FVG+", size=size.tiny)
+plotshape(showComponents and m15BearFvg, "D Bear FVG retest", shape.square, location.abovebar, color=color.orange, text="FVG-", size=size.tiny)
+plotshape(showComponents and m15BullOb, "E Bull OB retest", shape.diamond, location.belowbar, color=color.blue, text="OB+", size=size.tiny)
+plotshape(showComponents and m15BearOb, "E Bear OB retest", shape.diamond, location.abovebar, color=color.purple, text="OB-", size=size.tiny)
+plotshape(longQualified, "Phantom Flow BUY", shape.labelup, location.belowbar, color=color.lime, text="BUY", textcolor=color.black)
+plotshape(shortQualified, "Phantom Flow SELL", shape.labeldown, location.abovebar, color=color.red, text="SELL", textcolor=color.white)
+
+if longQualified
+    label.new(bar_index, low, "BUY | Score " + str.tostring(longScore) + "/6", style=label.style_label_up, color=color.lime, textcolor=color.black)
+if shortQualified
+    label.new(bar_index, high, "SELL | Score " + str.tostring(shortScore) + "/6", style=label.style_label_down, color=color.red, textcolor=color.white)
+
+alertcondition(longQualified, "Phantom Flow BUY", "Phantom Flow BUY: Stage A trigger with directional confirmations")
+alertcondition(shortQualified, "Phantom Flow SELL", "Phantom Flow SELL: Stage A trigger with directional confirmations")
+alertcondition(m15BosUpClosed, "M15 Bullish BOS", "Confirmed M15 bullish structure break")
+alertcondition(m15BosDnClosed, "M15 Bearish BOS", "Confirmed M15 bearish structure break")
+alertcondition(m15SellSweep, "M15 Sell-side sweep", "M15 sell-side liquidity sweep and reclaim")
+alertcondition(m15BuySweep, "M15 Buy-side sweep", "M15 buy-side liquidity sweep and reclaim")
