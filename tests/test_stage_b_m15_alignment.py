@@ -34,6 +34,14 @@ class M15AlignmentTests(unittest.TestCase):
         self.assertEqual(row.m15_close_time,
                          pd.Timestamp("2025-01-01T00:30:00Z"))
 
+    def test_irregular_three_row_group_is_rejected(self):
+        x = self.make_data()
+        x.loc[x.Datetime == pd.Timestamp("2025-01-01T00:05:00Z"),
+              "Datetime"] = pd.Timestamp("2025-01-01T00:06:00Z")
+        out = align_m15_structure_to_m5(x)
+        row = out[out.Datetime == pd.Timestamp("2025-01-01T00:15:00Z")].iloc[0]
+        self.assertTrue(pd.isna(row.m15_close_time))
+
     def test_m15_state_carries_forward_only_after_close(self):
         out = align_m15_structure_to_m5(self.make_data())
         first = out[out.Datetime < pd.Timestamp("2025-01-01T00:15:00Z")]
