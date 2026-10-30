@@ -38,11 +38,15 @@ def align_m15_structure_to_m5(df, left_bars=3, right_bars=3):
         count=("Datetime", "size"),
         first_time=("Datetime", "min"),
         last_time=("Datetime", "max"),
+        times=("Datetime", lambda s: tuple(s)),
         high=("mid_high", "max"), low=("mid_low", "min"),
         close=("mid_close", "last")).reset_index()
     # Reject incomplete bars and gaps: expected opens are :00, :05, :10.
     expected_last = m15.slot + pd.Timedelta(minutes=10)
+    expected_times = m15.slot.map(lambda t: (t, t + pd.Timedelta(minutes=5),
+                                                   t + pd.Timedelta(minutes=10)))
     m15 = m15[(m15["count"] == 3) &
+              (m15.times == expected_times) &
               (m15.first_time == m15.slot) &
               (m15.last_time == expected_last)].copy()
     m15["m15_close_time"] = m15.slot + pd.Timedelta(minutes=15)
@@ -55,12 +59,18 @@ def align_m15_structure_to_m5(df, left_bars=3, right_bars=3):
             result[col] = default
         return result
 
-    ev = structure_events(m15.high, m15.low, m15.close,
-                          left_bars, right_bars)
-    m15 = m15.reset_index(drop=True)
+    m15 = m15.sort_values("slot").reset_index(drop=True)
+    # Never allow swing windows to bridge a missing/incomplete M15 candle.
+    m15["segment"] = m15.slot.diff().ne(pd.Timedelta(minutes=15)).cumsum()
     for col in ["structure_direction", "bos_bull", "bos_bear",
                 "choch_bull", "choch_bear"]:
-        m15["m15_" + col] = ev[col].to_numpy()
+        m15["m15_" + col] = False if col.startswith(("bos_", "choch_")) else 0
+    for _, segment in m15.groupby("segment", sort=False):
+        ev = structure_events(segment.high, segment.low, segment.close,
+                              left_bars, right_bars)
+        for col in ["structure_direction", "bos_bull", "bos_bear",
+                    "choch_bull", "choch_bear"]:
+            m15.loc[segment.index, "m15_" + col] = ev[col].to_numpy()
     right = m15[["m15_close_time", "m15_structure_direction",
                  "m15_bos_bull", "m15_bos_bear",
                  "m15_choch_bull", "m15_choch_bear"]].sort_values("m15_close_time")
