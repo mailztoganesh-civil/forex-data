@@ -9,6 +9,7 @@ If stop and target are both touched in one bar, stop is assumed first.
 from __future__ import annotations
 import argparse
 from pathlib import Path
+from scripts.stage_b_m15_alignment import align_m15_structure_to_m5
 import numpy as np
 import pandas as pd
 
@@ -98,6 +99,10 @@ def run_backtest(df,a):
                     pos=None
         if pos is None and np.isfinite(prev.ATR) and prev.ATR>0:
             side="long" if prev.LongSignal else ("short" if prev.ShortSignal else None)
+            if side and getattr(a, "structure_filter", False):
+                direction = int(prev.m15_structure_direction)
+                if (side == "long" and direction <= 0) or (side == "short" and direction >= 0):
+                    side = None
             if side:
                 entry=(r.AskOpen+slip) if side=="long" else (r.BidOpen-slip)
                 risk=prev.ATR*a.stop_atr
@@ -171,15 +176,27 @@ def main():
     for c in PRICE: df[c]=pd.to_numeric(df[c],errors="coerce")
     df=df.dropna(subset=["Datetime",*PRICE]).sort_values("Datetime").drop_duplicates("Datetime").reset_index(drop=True)
     df=indicators(df,a)
+    # Compute confirmed M15 structure once on the full chronological dataset,
+    # then make it available only to M5 bars opening at/after M15 close.
+    aligned=align_m15_structure_to_m5(df)
+    df=df.merge(aligned.drop(columns=["Datetime"]), left_index=True,
+                right_index=True, how="left")
+    df["m15_structure_direction"]=df["m15_structure_direction"].fillna(0).astype(int)
+    for col in ["m15_bos_bull","m15_bos_bear","m15_choch_bull","m15_choch_bear"]:
+        df[col]=df[col].fillna(False).astype(bool)
+
     out=Path(a.out); out.mkdir(parents=True,exist_ok=True)
     results=[]
-    for label,start,end in [("IS_2021_2024","2021-01-01","2024-12-31"),("OOS_2025_2026","2025-01-01",a.end)]:
-        aa=argparse.Namespace(**vars(a)); aa.start=start; aa.end=end
-        trades,summary=run_backtest(df,aa)
-        trades.to_csv(out/f"{label.lower()}_trades.csv",index=False)
-        results.append({"period":label,**summary})
-    pd.DataFrame(results).to_csv(out/"summary.csv",index=False)
-    print(pd.DataFrame(results).to_string(index=False))
+    for variant, use_filter in [("A_BASELINE",False),("A_PLUS_B_M15",True)]:
+        for label,start,end in [("IS_2021_2024","2021-01-01","2024-12-31"),("OOS_2025_2026","2025-01-01",a.end)]:
+            aa=argparse.Namespace(**vars(a)); aa.start=start; aa.end=end
+            aa.structure_filter=use_filter
+            trades,summary=run_backtest(df,aa)
+            trades.to_csv(out/f"{variant.lower()}_{label.lower()}_trades.csv",index=False)
+            results.append({"variant":variant,"period":label,**summary})
+    summary_df=pd.DataFrame(results)
+    summary_df.to_csv(out/"comparison_summary.csv",index=False)
+    print(summary_df.to_string(index=False))
     print(f"Reports written to {out}")
 
 if __name__=="__main__": main()
