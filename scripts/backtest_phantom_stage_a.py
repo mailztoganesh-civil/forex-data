@@ -279,11 +279,11 @@ def main():
     out=Path(a.out); out.mkdir(parents=True,exist_ok=True)
     results=[]
     variants = [
-        ("A_BASELINE", False, False, False),
-        ("A_PLUS_B_M15", True, False, False),
-        ("A_PLUS_C_LIQUIDITY", False, True, False),
-        ("A_PLUS_B_PLUS_C", True, True, False),
-        ("A_PLUS_D_FVG", False, False, True),
+        ("A_BASELINE", False, False, False, False),
+        ("A_PLUS_B_M15", True, False, False, False),
+        ("A_PLUS_C_LIQUIDITY", False, True, False, False),
+        ("A_PLUS_B_PLUS_C", True, True, False, False),
+        ("A_PLUS_D_FVG", False, False, True, False),
         ("A_PLUS_B_PLUS_C_PLUS_D", True, True, True, False),
         ("A_PLUS_E_ORDER_BLOCK", False, False, False, True),
         ("A_PLUS_B_PLUS_C_PLUS_D_PLUS_E", True, True, True, True),
