@@ -1,9 +1,17 @@
 import unittest
 import pandas as pd
 from scripts.stage_c_liquidity import liquidity_sweep_events, align_m15_liquidity_to_m5
+from scripts.backtest_phantom_stage_a import liquidity_allows
 
 
 class StageCLiquidityTests(unittest.TestCase):
+    def test_directional_filter_requires_opposite_side_liquidity_sweep(self):
+        self.assertTrue(liquidity_allows("long", True, False))
+        self.assertFalse(liquidity_allows("long", False, True))
+        self.assertTrue(liquidity_allows("short", False, True))
+        self.assertFalse(liquidity_allows("short", True, False))
+        self.assertFalse(liquidity_allows(None, True, True))
+
     def test_sell_side_sweep_requires_wick_through_and_close_reclaim(self):
         high = [5, 4, 5, 4]
         low = [4, 2, 3, 1.8]
