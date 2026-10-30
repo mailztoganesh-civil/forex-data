@@ -185,11 +185,25 @@ def run_backtest(df,a):
                 if side=="long":
                     pos={"side":side,"entry_time":r.Datetime,"entry":entry,
                          "stop":entry-risk,"target":entry+risk*a.rr,
-                         "signal_time":prev.Datetime}
+                         "signal_time":prev.Datetime} 
+                    if score_parts is not None:
+                        pos.update({"quality_score":score_parts["score"],
+                                    "score_h1":score_parts["h1"],
+                                    "score_structure":score_parts["structure"],
+                                    "score_liquidity":score_parts["liquidity"],
+                                    "score_fvg":score_parts["fvg"],
+                                    "score_order_block":score_parts["order_block"]})
                 else:
                     pos={"side":side,"entry_time":r.Datetime,"entry":entry,
                          "stop":entry+risk,"target":entry-risk*a.rr,
-                         "signal_time":prev.Datetime}
+                         "signal_time":prev.Datetime} 
+                    if score_parts is not None:
+                        pos.update({"quality_score":score_parts["score"],
+                                    "score_h1":score_parts["h1"],
+                                    "score_structure":score_parts["structure"],
+                                    "score_liquidity":score_parts["liquidity"],
+                                    "score_fvg":score_parts["fvg"],
+                                    "score_order_block":score_parts["order_block"]})
                 # Entry is at this bar's open; process same-bar excursion.
                 if side=="long":
                     sh=r.BidLow<=pos["stop"]; th=r.BidHigh>=pos["target"]
