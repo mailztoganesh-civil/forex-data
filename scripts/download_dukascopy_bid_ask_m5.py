@@ -13,14 +13,33 @@ import lzma
 import struct
 import time
 from pathlib import Path
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+import threading
+from concurrent.futures import ThreadPoolExecutor
 
 import pandas as pd
+import requests
 
 BASE = "https://datafeed.dukascopy.com/datafeed"
 PAIR_POINT = {"EURUSD": 1e-5}
 RECORD = struct.Struct(">5If")  # seconds from UTC day start, O, C, L, H, volume
+
+
+_local = threading.local()
+_stats = {"requests": 0, "retries": 0}
+_stats_lock = threading.Lock()
+
+
+def _session() -> requests.Session:
+    # One keep-alive connection per worker thread instead of a new TLS handshake per file.
+    if not hasattr(_local, "session"):
+        sess = requests.Session()
+        sess.headers["User-Agent"] = "Mozilla/5.0"
+        _local.session = sess
+    return _local.session
+
+
+def _empty() -> pd.DataFrame:
+    return pd.DataFrame(columns=["Open", "High", "Low", "Close", "Volume"])
 
 
 def fetch_day(pair: str, day: dt.date, side: str, retries: int = 8) -> pd.DataFrame:
@@ -28,34 +47,70 @@ def fetch_day(pair: str, day: dt.date, side: str, retries: int = 8) -> pd.DataFr
         f"{BASE}/{pair}/{day.year}/{day.month - 1:02d}/{day.day:02d}/"
         f"{side}_candles_min_1.bi5"
     )
-    req = Request(url, headers={"User-Agent": "Mozilla/5.0"})
     last_error = None
     for attempt in range(retries):
+        t0 = time.monotonic()
+        wait = min(5 * (2 ** attempt), 60)
         try:
-            with urlopen(req, timeout=30) as response:
-                raw = response.read()
+            with _stats_lock:
+                _stats["requests"] += 1
+            resp = _session().get(url, timeout=30)
+            took = time.monotonic() - t0
+            if resp.status_code == 404:
+                print(f"  {day} {side}: 404 (no data) {took:.1f}s", flush=True)
+                return _empty()
+            if resp.status_code != 200:
+                last_error = f"HTTP {resp.status_code}"
+                retry_after = resp.headers.get("Retry-After")
+                if retry_after and retry_after.isdigit():
+                    wait = min(int(retry_after), 120)
+                raise _Retry(last_error)
+            raw = resp.content
             if not raw:
-                return pd.DataFrame(columns=["Open", "High", "Low", "Close", "Volume"])
+                return _empty()
             payload = lzma.decompress(raw)
             rows = []
+            point = PAIR_POINT[pair]
+            day_start = pd.Timestamp(day, tz="UTC")
             for offset in range(0, len(payload) - RECORD.size + 1, RECORD.size):
                 seconds, op, close, low, high, volume = RECORD.unpack_from(payload, offset)
-                stamp = pd.Timestamp(day, tz="UTC") + pd.Timedelta(seconds=seconds)
-                point = PAIR_POINT[pair]
+                stamp = day_start + pd.Timedelta(seconds=seconds)
                 rows.append((stamp, op * point, high * point, low * point, close * point, volume))
+            if attempt:
+                print(f"  {day} {side}: OK after {attempt} retr{'y' if attempt == 1 else 'ies'}", flush=True)
             if not rows:
-                return pd.DataFrame(columns=["Open", "High", "Low", "Close", "Volume"])
+                return _empty()
             return pd.DataFrame(
                 rows, columns=["Datetime", "Open", "High", "Low", "Close", "Volume"]
             ).set_index("Datetime").sort_index()
-        except HTTPError as exc:
-            if exc.code == 404:
-                return pd.DataFrame(columns=["Open", "High", "Low", "Close", "Volume"])
-            last_error = exc
-        except (URLError, TimeoutError, lzma.LZMAError, OSError, struct.error) as exc:
-            last_error = exc
-        time.sleep(min(5 * (2 ** attempt), 60))
+        except _Retry:
+            pass
+        except (requests.RequestException, lzma.LZMAError, OSError, struct.error) as exc:
+            last_error = f"{type(exc).__name__}: {exc}"
+        took = time.monotonic() - t0
+        with _stats_lock:
+            _stats["retries"] += 1
+        if attempt < retries - 1:
+            print(f"  {day} {side}: {last_error} after {took:.1f}s, "
+                  f"retry {attempt + 1}/{retries - 1} in {wait}s", flush=True)
+            time.sleep(wait)
     raise RuntimeError(f"Failed {pair} {side} {day}: {last_error}")
+
+
+class _Retry(Exception):
+    pass
+
+
+def fetch_pair(pair: str, day: dt.date, pause: float):
+    """Fetch BID and ASK for one day; return (day, bid, ask, error)."""
+    try:
+        bid = fetch_day(pair, day, "BID")
+        time.sleep(pause)
+        ask = fetch_day(pair, day, "ASK")
+        time.sleep(pause)
+        return day, bid, ask, None
+    except RuntimeError as exc:
+        return day, None, None, exc
 
 
 def to_m5(frame: pd.DataFrame) -> pd.DataFrame:
@@ -96,7 +151,10 @@ def main() -> None:
     parser.add_argument("--start", required=True, help="Inclusive UTC date YYYY-MM-DD")
     parser.add_argument("--end", required=True, help="Inclusive UTC date YYYY-MM-DD")
     parser.add_argument("--out", default="data")
-    parser.add_argument("--pause", type=float, default=1.0)
+    parser.add_argument("--pause", type=float, default=1.0,
+                        help="Seconds each worker waits between requests")
+    parser.add_argument("--workers", type=int, default=3,
+                        help="Days downloaded in parallel (lower it if 503s increase)")
     args = parser.parse_args()
 
     pair = args.pair.upper()
@@ -115,18 +173,19 @@ def main() -> None:
     quality = []
     failed: list[str] = []
 
-    for day in dates:
-        key = day.isoformat()
-        if ledger.get(key, {}).get("status") == "complete":
-            quality.append({"date": key, "status": "already_complete"})
-            continue
+    pending = [d for d in dates if ledger.get(d.isoformat(), {}).get("status") != "complete"]
+    for d in dates:
+        if d not in pending:
+            quality.append({"date": d.isoformat(), "status": "already_complete"})
+    print(f"{len(dates)} day(s) requested, {len(pending)} to download, "
+          f"workers={args.workers}, pause={args.pause}s", flush=True)
+    t_start = time.monotonic()
 
-        try:
-            bid_raw = fetch_day(pair, day, "BID")
-            time.sleep(args.pause)
-            ask_raw = fetch_day(pair, day, "ASK")
-            time.sleep(args.pause)
-        except RuntimeError as exc:
+    pool = ThreadPoolExecutor(max_workers=max(1, args.workers))
+    results = pool.map(lambda d: fetch_pair(pair, d, args.pause), pending)
+    for day, bid_raw, ask_raw, exc in results:  # yields in date order
+        key = day.isoformat()
+        if exc is not None:
             # Skip this day instead of aborting the whole backfill; rerun later to retry it.
             ledger[key] = {"status": "failed", "error": str(exc)}
             quality.append({"date": key, "status": "failed", "error": str(exc)})
@@ -153,12 +212,17 @@ def main() -> None:
         quality.append({"date": key, "status": "downloaded", "paired_m5_bars": int(count),
                         "full_day_reference_bars": 288})
         ledger_path.write_text(json.dumps(ledger, indent=2))
-        print(f"{key}: {count} paired M5 bars", flush=True)
+        elapsed = time.monotonic() - t_start
+        print(f"{key}: {count} paired M5 bars  [{elapsed / 60:.1f} min elapsed]", flush=True)
         if (day + dt.timedelta(days=1)).day == 1:
             save_all(cache, outdir, quality)  # checkpoint at each month end
 
+    pool.shutdown()
     save_all(cache, outdir, quality)
+    elapsed = time.monotonic() - t_start
     print(f"Saved data under {outdir}")
+    print(f"Done in {elapsed / 60:.1f} min: {_stats['requests']} requests, "
+          f"{_stats['retries']} failed attempts retried", flush=True)
     if failed:
         print(f"WARNING: {len(failed)} day(s) failed and were skipped: {', '.join(failed)}")
         if len(failed) == len(dates):
