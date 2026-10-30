@@ -100,7 +100,7 @@ def main() -> None:
         bad_ohlc = int((~g["OHLCValid"]).sum())
         bad_spread = int((~g["SpreadValid"]).sum())
         misaligned = int((~g["TimestampAligned"]).sum())
-        gaps = int((g["GapFromPreviousMinutes"].fillna(5) > 5).sum())
+        # Count only intraday gaps; the first bar after midnight is not a missing-bar gap.\n        intraday_gap_minutes = g["Datetime"].diff().dt.total_seconds() / 60\n        gaps = int((intraday_gap_minutes > 5).sum())
         tradable = int(g["Tradable"].sum())
         day_range = float(g["BidHigh"].max() - g["BidLow"].min())
         if active == 0 and weekday in ("Saturday", "Sunday"):
