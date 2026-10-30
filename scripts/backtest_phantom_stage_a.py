@@ -14,6 +14,7 @@ from scripts.stage_c_liquidity import align_m15_liquidity_to_m5
 from scripts.stage_d_fvg import align_m15_fvg_to_m5
 from scripts.stage_e_order_block import align_m15_order_blocks_to_m5
 from scripts.stage_f_multitimeframe import align_h1_bias_to_m5
+from scripts.stage_g_quality_score import directional_confirmation_score
 import numpy as np
 import pandas as pd
 
@@ -161,6 +162,15 @@ def run_backtest(df,a):
                 if not order_block_allows(side, r.m15_recent_bullish_ob_retest,
                                           r.m15_recent_bearish_ob_retest):
                     side = None
+            score_parts = None
+            if side and getattr(a, "quality_score_min", None) is not None:
+                score_parts = directional_confirmation_score(
+                    side, r.h1_bias_direction, r.m15_structure_direction,
+                    r.m15_recent_sell_side_sweep, r.m15_recent_buy_side_sweep,
+                    r.m15_recent_bullish_fvg_retest, r.m15_recent_bearish_fvg_retest,
+                    r.m15_recent_bullish_ob_retest, r.m15_recent_bearish_ob_retest)
+                if score_parts["score"] < a.quality_score_min:
+                    side = None
             if side and getattr(a, "h1_filter", False):
                 if not h1_allows(side, r.h1_bias_direction):
                     side = None
@@ -175,11 +185,25 @@ def run_backtest(df,a):
                 if side=="long":
                     pos={"side":side,"entry_time":r.Datetime,"entry":entry,
                          "stop":entry-risk,"target":entry+risk*a.rr,
-                         "signal_time":prev.Datetime}
+                         "signal_time":prev.Datetime} 
+                    if score_parts is not None:
+                        pos.update({"quality_score":score_parts["score"],
+                                    "score_h1":score_parts["h1"],
+                                    "score_structure":score_parts["structure"],
+                                    "score_liquidity":score_parts["liquidity"],
+                                    "score_fvg":score_parts["fvg"],
+                                    "score_order_block":score_parts["order_block"]})
                 else:
                     pos={"side":side,"entry_time":r.Datetime,"entry":entry,
                          "stop":entry+risk,"target":entry-risk*a.rr,
-                         "signal_time":prev.Datetime}
+                         "signal_time":prev.Datetime} 
+                    if score_parts is not None:
+                        pos.update({"quality_score":score_parts["score"],
+                                    "score_h1":score_parts["h1"],
+                                    "score_structure":score_parts["structure"],
+                                    "score_liquidity":score_parts["liquidity"],
+                                    "score_fvg":score_parts["fvg"],
+                                    "score_order_block":score_parts["order_block"]})
                 # Entry is at this bar's open; process same-bar excursion.
                 if side=="long":
                     sh=r.BidLow<=pos["stop"]; th=r.BidHigh>=pos["target"]
@@ -298,19 +322,22 @@ def main():
     out=Path(a.out); out.mkdir(parents=True,exist_ok=True)
     results=[]
     variants = [
-        ("A_BASELINE", False, False, False, False),
-        ("A_PLUS_B_M15", True, False, False, False),
-        ("A_PLUS_C_LIQUIDITY", False, True, False, False),
-        ("A_PLUS_B_PLUS_C", True, True, False, False),
-        ("A_PLUS_D_FVG", False, False, True, False),
-        ("A_PLUS_B_PLUS_C_PLUS_D", True, True, True, False),
-        ("A_PLUS_E_ORDER_BLOCK", False, False, False, True),
-        ("A_PLUS_B_PLUS_C_PLUS_D_PLUS_E", True, True, True, True, False),
-        ("A_PLUS_F_H1_TREND", False, False, False, False, True),
-        ("A_PLUS_B_PLUS_F", True, False, False, False, True),
-        ("A_PLUS_B_PLUS_C_PLUS_D_PLUS_E_PLUS_F", True, True, True, True, True),
+        ("A_BASELINE", False, False, False, False, False, None),
+        ("A_PLUS_B_M15", True, False, False, False, False, None),
+        ("A_PLUS_C_LIQUIDITY", False, True, False, False, False, None),
+        ("A_PLUS_B_PLUS_C", True, True, False, False, False, None),
+        ("A_PLUS_D_FVG", False, False, True, False, False, None),
+        ("A_PLUS_B_PLUS_C_PLUS_D", True, True, True, False, False, None),
+        ("A_PLUS_E_ORDER_BLOCK", False, False, False, True, False, None),
+        ("A_PLUS_B_PLUS_C_PLUS_D_PLUS_E", True, True, True, True, False, None),
+        ("A_PLUS_F_H1_TREND", False, False, False, False, True, None),
+        ("A_PLUS_B_PLUS_F", True, False, False, False, True, None),
+        ("A_PLUS_B_PLUS_C_PLUS_D_PLUS_E_PLUS_F", True, True, True, True, True, None),
+        ("G_SCORE_MIN_2", False, False, False, False, False, 2),
+        ("G_SCORE_MIN_3", False, False, False, False, False, 3),
+        ("G_SCORE_MIN_4", False, False, False, False, False, 4),
     ]
-    for variant, use_structure, use_liquidity, use_fvg, use_ob, use_h1 in variants:
+    for variant, use_structure, use_liquidity, use_fvg, use_ob, use_h1, quality_score_min in variants:
         for label,start,end in [("IS_2021_2024","2021-01-01","2024-12-31"),("OOS_2025_2026","2025-01-01",a.end)]:
             aa=argparse.Namespace(**vars(a)); aa.start=start; aa.end=end
             aa.structure_filter=use_structure
@@ -318,6 +345,7 @@ def main():
             aa.fvg_filter=use_fvg
             aa.order_block_filter=use_ob
             aa.h1_filter=use_h1
+            aa.quality_score_min=quality_score_min
             trades,summary=run_backtest(df,aa)
             trades.to_csv(out/f"{variant.lower()}_{label.lower()}_trades.csv",index=False)
             period_start = pd.Timestamp(start, tz="UTC")
