@@ -86,13 +86,14 @@ def run_backtest(df,a):
         r=df.iloc[i]
         # New-bar entry from the prior, fully closed signal bar.
         prev=df.iloc[i-1]
+        had_position_at_bar_open = pos is not None
         if pos is not None:
             if pos["side"]=="long":
                 stop_hit=r.BidLow <= pos["stop"]
                 target_hit=r.BidHigh >= pos["target"]
                 if stop_hit or target_hit:
                     # Conservative tie-break: stop first.
-                    px=(pos["stop"]-slip) if stop_hit else (pos["target"]-slip)
+                    px=(min(pos["stop"], r.BidOpen)-slip) if stop_hit else (pos["target"]-slip)
                     pnl=(px-pos["entry"])-2*comm
                     trades.append({**pos,"exit_time":r.Datetime,"exit_price":px,
                                    "exit_reason":"stop" if stop_hit else "target","pnl":pnl})
@@ -101,12 +102,14 @@ def run_backtest(df,a):
                 stop_hit=r.AskHigh >= pos["stop"]
                 target_hit=r.AskLow <= pos["target"]
                 if stop_hit or target_hit:
-                    px=(pos["stop"]+slip) if stop_hit else (pos["target"]+slip)
+                    px=(max(pos["stop"], r.AskOpen)+slip) if stop_hit else (pos["target"]+slip)
                     pnl=(pos["entry"]-px)-2*comm
                     trades.append({**pos,"exit_time":r.Datetime,"exit_price":px,
                                    "exit_reason":"stop" if stop_hit else "target","pnl":pnl})
                     pos=None
-        if pos is None and np.isfinite(prev.ATR) and prev.ATR>0:
+        # Never enter at this bar's open after an existing position exited
+        # later inside the same bar; that would be a retroactive fill.
+        if (not had_position_at_bar_open) and pos is None and np.isfinite(prev.ATR) and prev.ATR>0:
             side="long" if prev.LongSignal else ("short" if prev.ShortSignal else None)
             if side and getattr(a, "structure_filter", False):
                 # Structure is checked at the actual entry bar open. This
