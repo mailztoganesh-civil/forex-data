@@ -3,8 +3,8 @@ from __future__ import annotations
 import pandas as pd
 import numpy as np
 
-REQUIRED = ["Datetime", "BidHigh", "BidLow", "BidClose",
-            "AskHigh", "AskLow", "AskClose"]
+REQUIRED = ["Datetime", "BidOpen", "BidHigh", "BidLow", "BidClose",
+            "AskOpen", "AskHigh", "AskLow", "AskClose"]
 
 
 def fvg_retest_events(high, low, close, open_, max_age=20, min_gap=0.0):
@@ -80,7 +80,7 @@ def align_m15_fvg_to_m5(df, max_age=20, min_gap=0.0, recent_bars=3):
             "m15_recent_bullish_fvg_retest", "m15_recent_bearish_fvg_retest"]
     if x.empty:
         return pd.DataFrame(columns=["Datetime", "m15_close_time", *cols])
-    x["mid_open"] = (x.BidClose.shift(0) * 0 + (x.BidClose + x.AskClose)/2)
+    x["mid_open"] = (x.BidOpen + x.AskOpen)/2
     x["mid_high"] = (x.BidHigh + x.AskHigh)/2
     x["mid_low"] = (x.BidLow + x.AskLow)/2
     x["mid_close"] = (x.BidClose + x.AskClose)/2
