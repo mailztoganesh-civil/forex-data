@@ -42,24 +42,26 @@ var float longStop = na
 var float longTarget = na
 var float shortStop = na
 var float shortTarget = na
+var float pendingLongRisk = na
+var float pendingShortRisk = na
 
 if longEntry
     risk = atr * stopATR
-    longStop := close - risk
-    longTarget := close + risk * rr
+    pendingLongRisk := risk
     strategy.entry("Long", strategy.long)
-    strategy.exit("Long exit", "Long", stop=longStop, limit=longTarget)
 
 if shortEntry
     risk = atr * stopATR
-    shortStop := close + risk
-    shortTarget := close - risk * rr
+    pendingShortRisk := risk
     strategy.entry("Short", strategy.short)
-    strategy.exit("Short exit", "Short", stop=shortStop, limit=shortTarget)
 
-if strategy.position_size > 0 and not na(longStop)
+if strategy.position_size > 0 and not na(pendingLongRisk)
+    longStop := strategy.position_avg_price - pendingLongRisk
+    longTarget := strategy.position_avg_price + pendingLongRisk * rr
     strategy.exit("Long exit", "Long", stop=longStop, limit=longTarget)
-if strategy.position_size < 0 and not na(shortStop)
+if strategy.position_size < 0 and not na(pendingShortRisk)
+    shortStop := strategy.position_avg_price + pendingShortRisk
+    shortTarget := strategy.position_avg_price - pendingShortRisk * rr
     strategy.exit("Short exit", "Short", stop=shortStop, limit=shortTarget)
 
 plot(st, "ATR Shift", color=direction < 0 ? color.lime : color.red, linewidth=2)
