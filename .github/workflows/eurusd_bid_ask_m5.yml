@@ -1,0 +1,44 @@
+name: EURUSD BID-ASK M5 Data Backfill
+
+on:
+  workflow_dispatch:
+    inputs:
+      start_date:
+        description: "Inclusive UTC start date (YYYY-MM-DD)"
+        required: true
+        default: "2021-01-01"
+      end_date:
+        description: "Inclusive UTC end date (YYYY-MM-DD)"
+        required: true
+        default: "2021-01-31"
+
+permissions:
+  contents: read
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Download Dukascopy BID/ASK and aggregate to M5
+        run: |
+          python scripts/download_dukascopy_bid_ask_m5.py \
+            --pair EURUSD \
+            --start "${{ inputs.start_date }}" \
+            --end "${{ inputs.end_date }}" \
+            --out data
+      - name: Upload data and quality report
+        uses: actions/upload-artifact@v4
+        with:
+          name: eurusd-bid-ask-m5-${{ inputs.start_date }}-${{ inputs.end_date }}
+          path: data/EURUSD/5m/
+          if-no-files-found: error
+          retention-days: 30
