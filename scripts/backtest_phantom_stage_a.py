@@ -103,11 +103,11 @@ def run_backtest(df,a):
                 risk=prev.ATR*a.stop_atr
                 if side=="long":
                     pos={"side":side,"entry_time":r.Datetime,"entry":entry,
-                         "stop":prev.MidClose-risk,"target":prev.MidClose+risk*a.rr,
+                         "stop":entry-risk,"target":entry+risk*a.rr,
                          "signal_time":prev.Datetime}
                 else:
                     pos={"side":side,"entry_time":r.Datetime,"entry":entry,
-                         "stop":prev.MidClose+risk,"target":prev.MidClose-risk*a.rr,
+                         "stop":entry+risk,"target":entry-risk*a.rr,
                          "signal_time":prev.Datetime}
                 # Entry is at this bar's open; process same-bar excursion.
                 if side=="long":
