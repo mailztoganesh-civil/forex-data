@@ -5,7 +5,9 @@ on:
     paths:
       - "scripts/backtest_phantom_stage_a.py"
       - "tests/**"
+      - "tradingview/**"
       - ".github/workflows/phantom-stage-a-tests.yml"
+      - ".github/workflows/phantom-flow-full-comparison.yml"
   workflow_dispatch:
 
 permissions:
