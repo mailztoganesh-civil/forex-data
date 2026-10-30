@@ -1,0 +1,52 @@
+//@version=6
+indicator("Phantom Flow Stage B — Confirmed BOS / CHoCH", overlay=true, max_labels_count=500)
+
+// Non-repainting structure: pivots are published only after rightBars candles close.
+// Breaks require a candle close beyond the latest confirmed swing level.
+leftBars  = input.int(3, "Pivot left bars", minval=1)
+rightBars = input.int(3, "Pivot right bars", minval=1)
+showPivots = input.bool(true, "Show confirmed swing levels")
+
+ph = ta.pivothigh(high, leftBars, rightBars)
+pl = ta.pivotlow(low, leftBars, rightBars)
+
+var float lastHigh = na
+var float lastLow = na
+var bool highBroken = false
+var bool lowBroken = false
+var int trend = 0 // +1 bullish, -1 bearish, 0 not established
+
+if not na(ph)
+    lastHigh := ph
+    highBroken := false
+if not na(pl)
+    lastLow := pl
+    lowBroken := false
+
+bullBreak = barstate.isconfirmed and not na(lastHigh) and not highBroken and close > lastHigh
+bearBreak = barstate.isconfirmed and not na(lastLow) and not lowBroken and close < lastLow
+
+bullBOS = bullBreak and trend >= 0
+bullCHoCH = bullBreak and trend < 0
+bearBOS = bearBreak and trend <= 0
+bearCHoCH = bearBreak and trend > 0
+
+if bullBreak
+    highBroken := true
+    trend := 1
+if bearBreak
+    lowBroken := true
+    trend := -1
+
+plot(showPivots ? lastHigh : na, "Latest confirmed swing high", color=color.new(color.red, 35), style=plot.style_stepline)
+plot(showPivots ? lastLow : na, "Latest confirmed swing low", color=color.new(color.green, 35), style=plot.style_stepline)
+
+plotshape(bullBOS, "Bullish BOS", shape.labelup, location.belowbar, color=color.green, text="BOS", textcolor=color.white, size=size.tiny)
+plotshape(bullCHoCH, "Bullish CHoCH", shape.labelup, location.belowbar, color=color.lime, text="CHoCH", textcolor=color.black, size=size.tiny)
+plotshape(bearBOS, "Bearish BOS", shape.labeldown, location.abovebar, color=color.red, text="BOS", textcolor=color.white, size=size.tiny)
+plotshape(bearCHoCH, "Bearish CHoCH", shape.labeldown, location.abovebar, color=color.orange, text="CHoCH", textcolor=color.black, size=size.tiny)
+
+alertcondition(bullBOS, "Bullish BOS", "Confirmed bullish break of structure")
+alertcondition(bearBOS, "Bearish BOS", "Confirmed bearish break of structure")
+alertcondition(bullCHoCH, "Bullish CHoCH", "Confirmed bullish change of character")
+alertcondition(bearCHoCH, "Bearish CHoCH", "Confirmed bearish change of character")

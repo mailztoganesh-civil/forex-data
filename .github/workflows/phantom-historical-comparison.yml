@@ -1,0 +1,71 @@
+name: Phantom Flow A vs A+B historical comparison
+
+on:
+  workflow_dispatch:
+    inputs:
+      start_date:
+        description: "Inclusive UTC start date"
+        required: true
+        default: "2021-01-01"
+      end_date:
+        description: "Inclusive UTC end date"
+        required: true
+        default: "2026-10-31"
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install pandas numpy
+      - name: Build combined BID-ASK M5 input
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import pandas as pd
+          files = sorted(Path("data/EURUSD/5m").glob("*.csv*"))
+          files = [p for p in files if not p.name.startswith(("tradable_", "daily_", "flagged_"))]
+          if not files:
+              raise SystemExit("No EURUSD M5 BID/ASK source files found")
+          frames = []
+          for path in files:
+              frame = pd.read_csv(path, compression="infer")
+              frames.append(frame)
+          data = pd.concat(frames, ignore_index=True)
+          required = ["Datetime","BidOpen","BidHigh","BidLow","BidClose",
+                      "AskOpen","AskHigh","AskLow","AskClose"]
+          missing = sorted(set(required)-set(data.columns))
+          if missing:
+              raise SystemExit("Missing BID/ASK columns: " + ", ".join(missing))
+          data["Datetime"] = pd.to_datetime(data["Datetime"], utc=True, errors="coerce")
+          data = data.dropna(subset=["Datetime"]).sort_values("Datetime")
+          data = data.drop_duplicates("Datetime")
+          data.to_csv("/tmp/eurusd_bid_ask_m5.csv", index=False)
+          print("Input files:", ", ".join(p.name for p in files))
+          print("Rows:", len(data))
+          print("Coverage UTC:", data.Datetime.min(), "to", data.Datetime.max())
+          print("Unique years:", sorted(data.Datetime.dt.year.unique().tolist()))
+          PY
+      - name: Run A vs A+B comparison
+        run: |
+          python scripts/backtest_phantom_stage_a.py \
+            --input /tmp/eurusd_bid_ask_m5.csv \
+            --out reports/phantom_comparison \
+            --start "${{ inputs.start_date }}" \
+            --end "${{ inputs.end_date }}"
+      - name: Upload comparison reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: phantom-flow-a-vs-ab-comparison
+          path: reports/phantom_comparison/
+          if-no-files-found: error
+          retention-days: 90
