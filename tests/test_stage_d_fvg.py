@@ -27,7 +27,7 @@ class StageDFVGTests(unittest.TestCase):
         high=[10,10.5,12,11.8]
         low=[9,10.1,11,10.4]
         open_=[9.5,10.2,11.5,10.5]
-        close=[9.8,10.4,11.8,10.6]
+        close=[9.8,10.4,11.8,10.4]
         out=fvg_retest_events(high,low,close,open_,max_age=5)
         self.assertFalse(out.loc[3,"bullish_fvg_retest"])
 
