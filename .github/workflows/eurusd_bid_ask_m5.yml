@@ -36,6 +36,7 @@ jobs:
             --end "${{ inputs.end_date }}" \
             --out data
       - name: Upload data and quality report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: eurusd-bid-ask-m5-${{ inputs.start_date }}-${{ inputs.end_date }}

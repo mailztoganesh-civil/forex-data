@@ -80,13 +80,23 @@ def read_existing(path: Path) -> pd.DataFrame:
     return frame.sort_index()
 
 
+def save_all(cache: dict, outdir: Path, quality: list) -> None:
+    for year, frame in cache.items():
+        if not frame.empty:
+            frame = frame.sort_index()
+            frame.index.name = "Datetime"
+            frame.reset_index().to_csv(outdir / f"{year}.csv", index=False,
+                                       date_format="%Y-%m-%dT%H:%M:%SZ")
+    pd.DataFrame(quality).to_csv(outdir / "data_quality_report.csv", index=False)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--pair", default="EURUSD")
     parser.add_argument("--start", required=True, help="Inclusive UTC date YYYY-MM-DD")
     parser.add_argument("--end", required=True, help="Inclusive UTC date YYYY-MM-DD")
     parser.add_argument("--out", default="data")
-    parser.add_argument("--pause", type=float, default=0.15)
+    parser.add_argument("--pause", type=float, default=1.0)
     args = parser.parse_args()
 
     pair = args.pair.upper()
@@ -103,6 +113,7 @@ def main() -> None:
     dates = [start + dt.timedelta(days=i) for i in range((end - start).days + 1)]
     cache = {year: read_existing(outdir / f"{year}.csv") for year in sorted({d.year for d in dates})}
     quality = []
+    failed: list[str] = []
 
     for day in dates:
         key = day.isoformat()
@@ -110,10 +121,19 @@ def main() -> None:
             quality.append({"date": key, "status": "already_complete"})
             continue
 
-        bid_raw = fetch_day(pair, day, "BID")
-        time.sleep(args.pause)
-        ask_raw = fetch_day(pair, day, "ASK")
-        time.sleep(args.pause)
+        try:
+            bid_raw = fetch_day(pair, day, "BID")
+            time.sleep(args.pause)
+            ask_raw = fetch_day(pair, day, "ASK")
+            time.sleep(args.pause)
+        except RuntimeError as exc:
+            # Skip this day instead of aborting the whole backfill; rerun later to retry it.
+            ledger[key] = {"status": "failed", "error": str(exc)}
+            quality.append({"date": key, "status": "failed", "error": str(exc)})
+            failed.append(key)
+            ledger_path.write_text(json.dumps(ledger, indent=2))
+            print(f"{key}: FAILED ({exc})", flush=True)
+            continue
         bid, ask = to_m5(bid_raw).add_prefix("Bid"), to_m5(ask_raw).add_prefix("Ask")
         paired = bid.join(ask, how="inner")
 
@@ -133,16 +153,16 @@ def main() -> None:
         quality.append({"date": key, "status": "downloaded", "paired_m5_bars": int(count),
                         "full_day_reference_bars": 288})
         ledger_path.write_text(json.dumps(ledger, indent=2))
-        print(f"{key}: {count} paired M5 bars")
+        print(f"{key}: {count} paired M5 bars", flush=True)
+        if (day + dt.timedelta(days=1)).day == 1:
+            save_all(cache, outdir, quality)  # checkpoint at each month end
 
-    for year, frame in cache.items():
-        if not frame.empty:
-            frame = frame.sort_index()
-            frame.index.name = "Datetime"
-            frame.reset_index().to_csv(outdir / f"{year}.csv", index=False,
-                                       date_format="%Y-%m-%dT%H:%M:%SZ")
-    pd.DataFrame(quality).to_csv(outdir / "data_quality_report.csv", index=False)
+    save_all(cache, outdir, quality)
     print(f"Saved data under {outdir}")
+    if failed:
+        print(f"WARNING: {len(failed)} day(s) failed and were skipped: {', '.join(failed)}")
+        if len(failed) == len(dates):
+            raise SystemExit("Every requested day failed; nothing downloaded.")
 
 
 if __name__ == "__main__":
