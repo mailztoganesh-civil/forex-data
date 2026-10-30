@@ -1,6 +1,6 @@
 //@version=6
 strategy("Phantom Flow Complete A–G | MTF EURUSD Strategy", overlay=true, pyramiding=0,
-     initial_capital=10000, currency=currency.USD, process_orders_on_close=false,
+     initial_capital=10000, currency=currency.USD, process_orders_on_close=false, calc_on_order_fills=true,
      commission_type=strategy.commission.cash_per_order, commission_value=0,
      slippage=2, max_labels_count=500, max_lines_count=500)
 
@@ -107,8 +107,8 @@ f_buy_sweep() =>
     high > priorHigh and close < priorHigh
 m15SellSweep = request.security(syminfo.tickerid, "15", f_sell_sweep()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
 m15BuySweep = request.security(syminfo.tickerid, "15", f_buy_sweep()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
-recentSellSweep = ta.barssince(m15SellSweep) <= 3
-recentBuySweep = ta.barssince(m15BuySweep) <= 3
+recentSellSweep = ta.barssince(m15SellSweep) <= 9
+recentBuySweep = ta.barssince(m15BuySweep) <= 9
 
 // ── D: M15 FVG formation and later retest of the zone.
 f_bull_fvg_retest() =>
@@ -133,8 +133,8 @@ f_bear_fvg_retest() =>
     not na(formedAt) and bar_index > formedAt and bar_index - formedAt <= fvgAge and high >= zoneBot and close < (zoneTop + zoneBot) / 2
 m15BullFvg = request.security(syminfo.tickerid, "15", f_bull_fvg_retest()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
 m15BearFvg = request.security(syminfo.tickerid, "15", f_bear_fvg_retest()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
-recentBullFvg = ta.barssince(m15BullFvg) <= 3
-recentBearFvg = ta.barssince(m15BearFvg) <= 3
+recentBullFvg = ta.barssince(m15BullFvg) <= 9
+recentBearFvg = ta.barssince(m15BearFvg) <= 9
 
 // ── E: M15 displacement creates an OB from the prior opposing candle.
 f_bull_ob_retest() =>
@@ -161,8 +161,8 @@ f_bear_ob_retest() =>
     not na(formedAt) and bar_index > formedAt and bar_index - formedAt <= obAge and high >= zoneBot and close < (zoneTop + zoneBot) / 2
 m15BullOb = request.security(syminfo.tickerid, "15", f_bull_ob_retest()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
 m15BearOb = request.security(syminfo.tickerid, "15", f_bear_ob_retest()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
-recentBullOb = ta.barssince(m15BullOb) <= 3
-recentBearOb = ta.barssince(m15BearOb) <= 3
+recentBullOb = ta.barssince(m15BullOb) <= 9
+recentBearOb = ta.barssince(m15BearOb) <= 9
 
 // ── F: H1 EMA alignment, previous fully closed H1 candle only.
 f_h1_bias() =>
