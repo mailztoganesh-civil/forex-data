@@ -23,7 +23,7 @@ PAIR_POINT = {"EURUSD": 1e-5}
 RECORD = struct.Struct(">5If")  # seconds from UTC day start, O, C, L, H, volume
 
 
-def fetch_day(pair: str, day: dt.date, side: str, retries: int = 4) -> pd.DataFrame:
+def fetch_day(pair: str, day: dt.date, side: str, retries: int = 8) -> pd.DataFrame:
     url = (
         f"{BASE}/{pair}/{day.year}/{day.month - 1:02d}/{day.day:02d}/"
         f"{side}_candles_min_1.bi5"
@@ -54,7 +54,7 @@ def fetch_day(pair: str, day: dt.date, side: str, retries: int = 4) -> pd.DataFr
             last_error = exc
         except (URLError, TimeoutError, lzma.LZMAError, OSError, struct.error) as exc:
             last_error = exc
-        time.sleep(min(2 ** attempt, 15))
+        time.sleep(min(5 * (2 ** attempt), 60))
     raise RuntimeError(f"Failed {pair} {side} {day}: {last_error}")
 
 
