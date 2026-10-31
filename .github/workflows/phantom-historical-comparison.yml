@@ -32,7 +32,7 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           import pandas as pd
-          files = sorted(Path("data/EURUSD/5m").glob("*.csv*"))
+          files = sorted(Path("data/EURUSD/5m_bidask").glob("20[0-9][0-9].csv*"))
           files = [p for p in files if not p.name.startswith(("tradable_", "daily_", "flagged_"))]
           if not files:
               raise SystemExit("No EURUSD M5 BID/ASK source files found")

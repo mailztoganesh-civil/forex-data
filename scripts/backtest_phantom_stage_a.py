@@ -8,7 +8,10 @@ If stop and target are both touched in one bar, stop is assumed first.
 """
 from __future__ import annotations
 import argparse
+import sys
 from pathlib import Path
+# Allow `python scripts/backtest_phantom_stage_a.py` from the repo root (workflow usage).
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from scripts.stage_b_m15_alignment import align_m15_structure_to_m5
 from scripts.stage_c_liquidity import align_m15_liquidity_to_m5
 from scripts.stage_d_fvg import align_m15_fvg_to_m5
@@ -242,6 +245,18 @@ def run_backtest(df,a):
              "net_pips":round(t.pnl_pips.sum(),3)}
     return t,summary
 
+def _join_stage(df, part):
+    """Left-join one stage's per-bar output by row index.
+
+    Every M15 stage returns its own `m15_close_time` helper column; keep only the
+    first copy so later stages don't collide with it (pandas >= 2 raises
+    MergeError on repeated _x/_y suffixes).
+    """
+    part = part.drop(columns=["Datetime", *[c for c in part.columns if c in df.columns]],
+                     errors="ignore")
+    return df.merge(part, left_index=True, right_index=True, how="left")
+
+
 def main():
     p=argparse.ArgumentParser()
     p.add_argument("--input",required=True)
@@ -286,32 +301,27 @@ def main():
     # Compute confirmed M15 structure once on the full chronological dataset,
     # then make it available only to M5 bars opening at/after M15 close.
     aligned=align_m15_structure_to_m5(df)
-    df=df.merge(aligned.drop(columns=["Datetime"]), left_index=True,
-                right_index=True, how="left")
+    df = _join_stage(df, aligned)
     df["m15_structure_direction"]=df["m15_structure_direction"].fillna(0).astype(int)
     liquidity = align_m15_liquidity_to_m5(df, recent_bars=a.liquidity_recent_bars)
-    df = df.merge(liquidity.drop(columns=["Datetime"]), left_index=True,
-                  right_index=True, how="left")
+    df = _join_stage(df, liquidity)
     fvg = align_m15_fvg_to_m5(df, max_age=a.fvg_max_age,
                               min_gap=a.fvg_min_gap_pips*0.0001,
                               recent_bars=a.fvg_recent_bars)
-    df = df.merge(fvg.drop(columns=["Datetime"]), left_index=True,
-                  right_index=True, how="left")
+    df = _join_stage(df, fvg)
     for col in ["m15_bullish_fvg_retest", "m15_bearish_fvg_retest",
                 "m15_recent_bullish_fvg_retest", "m15_recent_bearish_fvg_retest"]:
         df[col] = df[col].fillna(False).astype(bool)
     ob = align_m15_order_blocks_to_m5(df, lookback=a.ob_lookback,
         atr_period=a.ob_atr_period, displacement_atr=a.ob_displacement_atr,
         max_age=a.ob_max_age, recent_bars=a.ob_recent_bars)
-    df = df.merge(ob.drop(columns=["Datetime"]), left_index=True,
-                  right_index=True, how="left")
+    df = _join_stage(df, ob)
     for col in ["m15_bullish_ob_retest", "m15_bearish_ob_retest",
                 "m15_recent_bullish_ob_retest", "m15_recent_bearish_ob_retest"]:
         df[col] = df[col].fillna(False).astype(bool)
     h1 = align_h1_bias_to_m5(df, fast_period=a.h1_ema_fast,
                              slow_period=a.h1_ema_slow)
-    df = df.merge(h1.drop(columns=["Datetime"]), left_index=True,
-                  right_index=True, how="left")
+    df = _join_stage(df, h1)
     df["h1_bias_direction"] = df["h1_bias_direction"].fillna(0).astype(int)
     for col in ["m15_sell_side_sweep", "m15_buy_side_sweep",
                 "m15_recent_sell_side_sweep", "m15_recent_buy_side_sweep"]:

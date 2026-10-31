@@ -23,10 +23,11 @@ GENERATED_FILES = {
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--input-dir", default="data/EURUSD/5m")
+    ap.add_argument("--input-dir", default="data/EURUSD/5m_bidask")
     args = ap.parse_args()
     folder = Path(args.input_dir)
-    files = sorted(p for p in folder.glob("*.csv") if p.name not in GENERATED_FILES)
+    files = sorted(p for p in list(folder.glob("*.csv")) + list(folder.glob("*.csv.gz"))
+                   if p.name not in GENERATED_FILES)
     if not files:
         raise SystemExit(f"No annual CSV files found in {folder}")
 

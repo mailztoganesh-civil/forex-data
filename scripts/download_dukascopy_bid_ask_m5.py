@@ -122,9 +122,17 @@ def to_m5(frame: pd.DataFrame) -> pd.DataFrame:
     }).dropna(subset=["Open", "High", "Low", "Close"])
 
 
-def read_existing(path: Path) -> pd.DataFrame:
+def year_file(outdir: Path, year: int) -> Path:
+    return outdir / f"{year}.csv.gz"
+
+
+def read_existing(outdir: Path, year: int) -> pd.DataFrame:
+    path = year_file(outdir, year)
     if not path.exists():
-        return pd.DataFrame()
+        legacy = outdir / f"{year}.csv"   # older uncompressed output
+        if not legacy.exists():
+            return pd.DataFrame()
+        path = legacy
     frame = pd.read_csv(path, parse_dates=["Datetime"])
     index = pd.DatetimeIndex(frame.pop("Datetime"))
     if index.tz is None:
@@ -140,7 +148,7 @@ def save_all(cache: dict, outdir: Path, quality: list) -> None:
         if not frame.empty:
             frame = frame.sort_index()
             frame.index.name = "Datetime"
-            frame.reset_index().to_csv(outdir / f"{year}.csv", index=False,
+            frame.reset_index().to_csv(year_file(outdir, year), index=False,
                                        date_format="%Y-%m-%dT%H:%M:%SZ")
     pd.DataFrame(quality).to_csv(outdir / "data_quality_report.csv", index=False)
 
@@ -151,6 +159,8 @@ def main() -> None:
     parser.add_argument("--start", required=True, help="Inclusive UTC date YYYY-MM-DD")
     parser.add_argument("--end", required=True, help="Inclusive UTC date YYYY-MM-DD")
     parser.add_argument("--out", default="data")
+    parser.add_argument("--subdir", default="5m_bidask",
+                        help="Folder under <out>/<PAIR>/ (kept apart from HistData's 5m/)")
     parser.add_argument("--pause", type=float, default=1.0,
                         help="Seconds each worker waits between requests")
     parser.add_argument("--workers", type=int, default=3,
@@ -164,12 +174,12 @@ def main() -> None:
     if end < start:
         raise SystemExit("--end must be on/after --start")
 
-    outdir = Path(args.out) / pair / "5m"
+    outdir = Path(args.out) / pair / args.subdir
     outdir.mkdir(parents=True, exist_ok=True)
     ledger_path = outdir / "download_ledger.json"
     ledger = json.loads(ledger_path.read_text()) if ledger_path.exists() else {}
     dates = [start + dt.timedelta(days=i) for i in range((end - start).days + 1)]
-    cache = {year: read_existing(outdir / f"{year}.csv") for year in sorted({d.year for d in dates})}
+    cache = {year: read_existing(outdir, year) for year in sorted({d.year for d in dates})}
     quality = []
     failed: list[str] = []
 

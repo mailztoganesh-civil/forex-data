@@ -8,9 +8,13 @@ on:
       - "tests/**"
       - "tradingview/**"
       - ".github/workflows/phantom-flow-full-comparison.yml"
-      - "data/EURUSD/5m/**"
+      - "data/EURUSD/5m_bidask/**"
   workflow_dispatch:
     inputs:
+      start_date:
+        description: "Inclusive UTC start date"
+        required: true
+        default: "2021-01-01"
       end_date:
         description: "Inclusive UTC end date"
         required: true
@@ -32,40 +36,56 @@ jobs:
         run: pip install pandas numpy
       - name: Run complete test suite
         run: python -m unittest discover -s tests -v
-      - name: Inspect and build combined BID-ASK M5 input
+      - name: Build combined BID-ASK M5 input (real Dukascopy BID/ASK only)
         shell: bash
+        env:
+          START: ${{ inputs.start_date || '2021-01-01' }}
+          END: ${{ inputs.end_date || '2026-10-31' }}
         run: |
           python - <<'PY'
+          import os
           from pathlib import Path
           import pandas as pd
-          files = sorted(Path("data/EURUSD/5m").glob("20[0-9][0-9].csv*"))
+          src = Path("data/EURUSD/5m_bidask")
+          files = sorted(src.glob("20[0-9][0-9].csv*"))
           if not files:
-              raise SystemExit("No annual EURUSD M5 source files found (expected YYYY.csv or YYYY.csv.gz)")
+              raise SystemExit(
+                  "No BID/ASK data in data/EURUSD/5m_bidask. Run Actions -> "
+                  "'EURUSD BID-ASK M5 full backfill (commit to repo)' first. "
+                  "data/EURUSD/5m holds HistData single-price bars and is not used here.")
           frames = []
           for path in files:
-              frame = pd.read_csv(path, compression="infer")
-              print(f"\nFILE: {path.name}")
-              print("COLUMNS:", repr(list(frame.columns)))
-              print("SAMPLE:", frame.head(2).to_dict(orient="records"))
+              frame = pd.read_csv(path)
+              print(f"{path.name}: {len(frame):,} rows, columns {list(frame.columns)[:9]}")
               frames.append(frame)
           data = pd.concat(frames, ignore_index=True)
           required = ["Datetime","BidOpen","BidHigh","BidLow","BidClose","AskOpen","AskHigh","AskLow","AskClose"]
-          missing = sorted(set(required)-set(data.columns))
+          missing = sorted(set(required) - set(data.columns))
           if missing:
-              raise SystemExit("Source schema diagnostic: missing expected columns " + ", ".join(missing))
+              raise SystemExit("Missing BID/ASK columns: " + ", ".join(missing))
           data["Datetime"] = pd.to_datetime(data["Datetime"], utc=True, errors="coerce")
           data = data.dropna(subset=["Datetime"]).sort_values("Datetime").drop_duplicates("Datetime")
-          data.to_csv("/tmp/eurusd_bid_ask_m5.csv", index=False)
-          print("\nRows:", len(data))
+          start = pd.Timestamp(os.environ["START"], tz="UTC")
+          end = pd.Timestamp(os.environ["END"], tz="UTC")
+          print("Rows:", len(data))
           print("Coverage UTC:", data.Datetime.min(), "to", data.Datetime.max())
-          print("Available years:", sorted(data.Datetime.dt.year.unique().tolist()))
+          days = data.Datetime.dt.date
+          print("Trading days with bars per year:")
+          print(days.groupby(data.Datetime.dt.year).nunique().to_string())
+          # Weekend/holiday slack of 7 days at either end
+          if data.Datetime.min() > start + pd.Timedelta(days=7):
+              raise SystemExit(f"BID/ASK data starts {data.Datetime.min():%Y-%m-%d}, after requested "
+                               f"start {start:%Y-%m-%d}. Run the full backfill for the missing range.")
+          if data.Datetime.max() < min(end, pd.Timestamp.now(tz="UTC")) - pd.Timedelta(days=7):
+              print(f"WARNING: data ends {data.Datetime.max():%Y-%m-%d}, before requested end {end:%Y-%m-%d}")
+          data.to_csv("/tmp/eurusd_bid_ask_m5.csv", index=False)
           PY
       - name: Run A-G independent and combined comparisons
         run: |
           python scripts/backtest_phantom_stage_a.py \
             --input /tmp/eurusd_bid_ask_m5.csv \
             --out reports/phantom_flow_a_to_g \
-            --start 2021-01-01 \
+            --start "${{ inputs.start_date || '2021-01-01' }}" \
             --end "${{ inputs.end_date || '2026-10-31' }}"
       - name: Upload tests and backtest reports
         uses: actions/upload-artifact@v4

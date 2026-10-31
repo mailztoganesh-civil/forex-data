@@ -1,0 +1,140 @@
+name: EURUSD BID-ASK M5 full backfill (commit to repo)
+
+# Downloads real Dukascopy BID and ASK candles in parallel date chunks,
+# merges them into data/EURUSD/5m_bidask/YYYY.csv.gz, commits them, and then
+# starts the Phantom Flow A-G comparison. Safe to rerun: days already marked
+# complete in the committed ledger are skipped, failed days are retried.
+
+on:
+  workflow_dispatch:
+    inputs:
+      start_date:
+        description: "Inclusive UTC start date"
+        required: true
+        default: "2021-01-01"
+      end_date:
+        description: "Inclusive UTC end date (blank = yesterday)"
+        required: false
+        default: ""
+      chunk_months:
+        description: "Months per parallel job"
+        required: true
+        default: "3"
+      workers:
+        description: "Days downloaded in parallel inside each job"
+        required: true
+        default: "2"
+      run_comparison:
+        description: "Start the A-G comparison after committing"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: eurusd-bidask-backfill
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      chunks: ${{ steps.plan.outputs.chunks }}
+    steps:
+      - id: plan
+        shell: python
+        run: |
+          import datetime as dt, json, os
+          start = dt.date.fromisoformat("${{ inputs.start_date }}")
+          raw_end = "${{ inputs.end_date }}".strip()
+          end = dt.date.fromisoformat(raw_end) if raw_end else dt.date.today() - dt.timedelta(days=1)
+          step = int("${{ inputs.chunk_months }}")
+          chunks, a = [], start
+          while a <= end:
+              m = a.month - 1 + step
+              b = dt.date(a.year + m // 12, m % 12 + 1, 1) - dt.timedelta(days=1)
+              b = min(b, end)
+              chunks.append({"start": a.isoformat(), "end": b.isoformat()})
+              a = b + dt.timedelta(days=1)
+          print(json.dumps(chunks, indent=1))
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"chunks={json.dumps(chunks)}\n")
+
+  download:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        chunk: ${{ fromJSON(needs.plan.outputs.chunks) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - name: Download ${{ matrix.chunk.start }} to ${{ matrix.chunk.end }}
+        run: |
+          # Start from the committed ledger so finished days are skipped.
+          mkdir -p work/EURUSD/5m_bidask
+          if [ -f data/EURUSD/5m_bidask/download_ledger.json ]; then
+            cp data/EURUSD/5m_bidask/download_ledger.json work/EURUSD/5m_bidask/
+          fi
+          python -u scripts/download_dukascopy_bid_ask_m5.py \
+            --pair EURUSD \
+            --start "${{ matrix.chunk.start }}" \
+            --end "${{ matrix.chunk.end }}" \
+            --out work --subdir 5m_bidask \
+            --workers "${{ inputs.workers }}"
+      - name: Upload chunk
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bidask-chunk-${{ matrix.chunk.start }}
+          path: work/EURUSD/5m_bidask/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  merge-and-commit:
+    needs: download
+    if: always() && needs.download.result != 'skipped'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: bidask-chunk-*
+          path: chunks
+      - name: Merge chunks into data/EURUSD/5m_bidask
+        run: python scripts/merge_bidask_chunks.py --chunks chunks --dest data/EURUSD/5m_bidask
+      - name: Audit merged data
+        run: |
+          mkdir -p /tmp/audit && cp data/EURUSD/5m_bidask/20*.csv.gz /tmp/audit/
+          python scripts/audit_m5_data_quality.py --input-dir /tmp/audit
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/EURUSD/5m_bidask/20*.csv.gz \
+                  data/EURUSD/5m_bidask/download_ledger.json \
+                  data/EURUSD/5m_bidask/data_quality_report.csv
+          if git diff --cached --quiet; then echo "No new data"; exit 0; fi
+          git commit -m "EURUSD BID/ASK M5 backfill ${{ inputs.start_date }} to ${{ inputs.end_date || 'yesterday' }}"
+          for i in 1 2 3; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            sleep 10
+          done
+          exit 1
+      - name: Start A-G comparison
+        if: inputs.run_comparison
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run phantom-flow-full-comparison.yml --ref main

@@ -42,12 +42,12 @@ jobs:
             --workers "${{ inputs.workers }}"
       - name: Audit downloaded M5 data quality
         if: always()
-        run: python scripts/audit_m5_data_quality.py --input-dir data/EURUSD/5m
+        run: python scripts/audit_m5_data_quality.py --input-dir data/EURUSD/5m_bidask
       - name: Upload data and quality report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: eurusd-bid-ask-m5-${{ inputs.start_date }}-${{ inputs.end_date }}
-          path: data/EURUSD/5m/
+          path: data/EURUSD/5m_bidask/
           if-no-files-found: error
           retention-days: 30

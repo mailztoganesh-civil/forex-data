@@ -23,15 +23,21 @@ not implement Phantom Flow signals or report trading performance.
 - `tradable_m5_bars.csv` is a derived research input; annual raw CSV files are
   preserved unchanged. The daily audit distinguishes clean active days from
   days with actual intraday gaps; UTC date boundaries are not counted as gaps.
-- The workflow uploads artifacts with a 30-day retention period; it does not
-  commit large market-data files into the repository.
+- BID/ASK data lives in `data/EURUSD/5m_bidask/YYYY.csv.gz`. `data/EURUSD/5m/`
+  holds HistData single-price (BID) bars from 2023 and is NOT used by the
+  Phantom Flow backtests: they need real BID and ASK OHLC, and no BID/ASK
+  values are synthesised from single-price data.
 
 ## Run
 
-Open **Actions → EURUSD BID-ASK M5 Data Backfill → Run workflow**.
-Start with a small range such as 2021-01-01 through 2021-01-07. Inspect the
-artifact's yearly CSV, ledger, daily audit, flagged rows, and filtered
-`tradable_m5_bars.csv` before larger downloads.
+- **Full history, committed to the repo:** Actions → **EURUSD BID-ASK M5 full
+  backfill (commit to repo)** → Run workflow (defaults: 2021-01-01 to
+  yesterday, 3-month chunks in parallel). It merges the chunks, audits them,
+  commits `data/EURUSD/5m_bidask/`, then starts the A-G comparison. Rerun it to
+  retry failed days; completed days are skipped.
+- **Quick inspection only (artifact, not committed):** Actions → **EURUSD
+  BID-ASK M5 Data Backfill** with a small range such as 2021-01-01 to
+  2021-01-07.
 
 ## Research plan after data validation
 
