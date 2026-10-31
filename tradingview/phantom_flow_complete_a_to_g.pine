@@ -29,17 +29,17 @@ gF = "F — H1 trend"
 h1Fast = input.int(20, "H1 EMA fast", minval=1, group=gF)
 h1Slow = input.int(50, "H1 EMA slow", minval=2, group=gF)
 gG = "G — Quality score"
-minScore = input.int(3, "Minimum score (0–6)", minval=0, maxval=6, group=gG)
+minScore = input.int(2, "Minimum score (0–6)", minval=0, maxval=6, group=gG)
 showComponents = input.bool(true, "Show B–F confirmation markers", group=gG)
 showSignals = input.bool(true, "Show qualified entries", group=gG)
+showRawTriggers = input.bool(false, "Show A trigger even when score-filtered", group=gG)
 
 // ── A: M5 trigger
 [stLine, stDir] = ta.supertrend(factor, atrLen)
 atr = ta.atr(atrLen)
 oscRaw = (ta.ema(close, emaLen) - ta.sma(close, baseLen)) / math.max(atr, syminfo.mintick)
 osc = ta.ema(oscRaw, smooth)
-aLong = barstate.isconfirmed and stDir < 0 and stDir[1] > 0 and ta.crossover(osc, threshold)
-aShort = barstate.isconfirmed and stDir > 0 and stDir[1] < 0 and ta.crossunder(osc, -threshold)
+// Trigger on either a Supertrend flip with oscillator already aligned, or an oscillator\n// threshold cross while Supertrend is aligned. The old version demanded both on\n// the exact same bar, which made signals exceptionally rare.\naLong = barstate.isconfirmed and stDir < 0 and osc > threshold and (stDir[1] > 0 or ta.crossover(osc, threshold))\naShort = barstate.isconfirmed and stDir > 0 and osc < -threshold and (stDir[1] < 0 or ta.crossunder(osc, -threshold))
 
 // ── B: M15 confirmed pivot structure. Separate scalar functions keep
 // request.security expressions unambiguous and use only closed M15 candles.
@@ -184,13 +184,7 @@ plotshape(showComponents and m15BullFvg, "D Bull FVG retest", shape.square, loca
 plotshape(showComponents and m15BearFvg, "D Bear FVG retest", shape.square, location.abovebar, color=color.orange, text="FVG-", size=size.tiny)
 plotshape(showComponents and m15BullOb, "E Bull OB retest", shape.diamond, location.belowbar, color=color.blue, text="OB+", size=size.tiny)
 plotshape(showComponents and m15BearOb, "E Bear OB retest", shape.diamond, location.abovebar, color=color.purple, text="OB-", size=size.tiny)
-plotshape(longQualified, "Phantom Flow BUY", shape.labelup, location.belowbar, color=color.lime, text="BUY", textcolor=color.black)
-plotshape(shortQualified, "Phantom Flow SELL", shape.labeldown, location.abovebar, color=color.red, text="SELL", textcolor=color.white)
-
-if longQualified
-    label.new(bar_index, low, "BUY | Score " + str.tostring(longScore) + "/6", style=label.style_label_up, color=color.lime, textcolor=color.black)
-if shortQualified
-    label.new(bar_index, high, "SELL | Score " + str.tostring(shortScore) + "/6", style=label.style_label_down, color=color.red, textcolor=color.white)
+// High-visibility trade markers. Score-filtered A triggers can optionally be shown\n// as small gray triangles to explain why a candidate did not qualify.\nplotshape(longQualified, title="Phantom Flow BUY", style=shape.labelup, location=location.belowbar, color=color.rgb(0, 220, 90), text="BUY", textcolor=color.black, size=size.large)\nplotshape(shortQualified, title="Phantom Flow SELL", style=shape.labeldown, location=location.abovebar, color=color.rgb(240, 40, 60), text="SELL", textcolor=color.white, size=size.large)\nplotshape(showRawTriggers and aLong and not longQualified, title="BUY candidate filtered", style=shape.triangleup, location=location.belowbar, color=color.gray, text="buy?", textcolor=color.white, size=size.tiny)\nplotshape(showRawTriggers and aShort and not shortQualified, title="SELL candidate filtered", style=shape.triangledown, location=location.abovebar, color=color.gray, text="sell?", textcolor=color.white, size=size.tiny)\n\nif longQualified\n    label.new(bar_index, low, "BUY  " + str.tostring(longScore) + "/6", style=label.style_label_up, color=color.rgb(0, 220, 90), textcolor=color.black, size=size.normal)\nif shortQualified\n    label.new(bar_index, high, "SELL  " + str.tostring(shortScore) + "/6", style=label.style_label_down, color=color.rgb(240, 40, 60), textcolor=color.white, size=size.normal)
 
 alertcondition(longQualified, "Phantom Flow BUY", "Phantom Flow BUY: Stage A trigger with directional confirmations")
 alertcondition(shortQualified, "Phantom Flow SELL", "Phantom Flow SELL: Stage A trigger with directional confirmations")
