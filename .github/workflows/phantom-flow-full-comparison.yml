@@ -38,8 +38,9 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           import pandas as pd
-          files = sorted(Path("data/EURUSD/5m").glob("*.csv*"))
-          files = [p for p in files if not p.name.startswith(("tradable_", "daily_", "flagged_"))]
+          files = sorted(Path("data/EURUSD/5m").glob("20[0-9][0-9].csv*"))
+          if not files:
+              raise SystemExit("No annual EURUSD M5 BID/ASK source files found (expected YYYY.csv or YYYY.csv.gz)")
           if not files:
               raise SystemExit("No EURUSD M5 BID/ASK source files found")
           frames = [pd.read_csv(path, compression="infer") for path in files]
