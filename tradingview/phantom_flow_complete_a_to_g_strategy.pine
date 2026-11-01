@@ -34,8 +34,12 @@ obAge = input.int(20, "Maximum OB age (M15 bars)", minval=1, group=gE)
 gF = "F — H1 trend"
 h1Fast = input.int(20, "H1 EMA fast", minval=1, group=gF)
 h1Slow = input.int(50, "H1 EMA slow", minval=2, group=gF)
+qualityProfile = input.string("Moderate", "Quality profile", options=["Baseline", "Moderate", "Strict"], group=gF, tooltip="Baseline: slope off / score 2. Moderate: slope on / score 3. Strict: slope on / score 4.")
+slopeLookback = input.int(3, "Slope lookback (H1 bars)", minval=1, group=gF)
+slopeFlatThreshold = input.float(0.10, "Minimum slope strength (ATR units)", minval=0.0, step=0.01, group=gF)
+slopeEnabled = qualityProfile != "Baseline"
 gG = "G — Quality score"
-minScore = input.int(3, "Minimum score (0–6)", minval=0, maxval=6, group=gG)
+minScore = qualityProfile == "Baseline" ? 2 : qualityProfile == "Moderate" ? 3 : 4
 showComponents = input.bool(true, "Show B–F confirmation markers", group=gG)
 showSignals = input.bool(true, "Show qualified entries", group=gG)
 
@@ -44,8 +48,8 @@ showSignals = input.bool(true, "Show qualified entries", group=gG)
 atr = ta.atr(atrLen)
 oscRaw = (ta.ema(close, emaLen) - ta.sma(close, baseLen)) / math.max(atr, syminfo.mintick)
 osc = ta.ema(oscRaw, smooth)
-aLong = barstate.isconfirmed and stDir < 0 and stDir[1] > 0 and ta.crossover(osc, threshold)
-aShort = barstate.isconfirmed and stDir > 0 and stDir[1] < 0 and ta.crossunder(osc, -threshold)
+aLong = barstate.isconfirmed and stDir < 0 and osc > threshold and (stDir[1] > 0 or ta.crossover(osc, threshold))
+aShort = barstate.isconfirmed and stDir > 0 and osc < -threshold and (stDir[1] < 0 or ta.crossunder(osc, -threshold))
 
 // ── B: M15 confirmed pivot structure. Separate scalar functions keep
 // request.security expressions unambiguous and use only closed M15 candles.
@@ -170,6 +174,13 @@ f_h1_bias() =>
     slow = ta.ema(close, h1Slow)
     close > fast and fast > slow ? 1 : close < fast and fast < slow ? -1 : 0
 h1Bias = request.security(syminfo.tickerid, "60", f_h1_bias()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+f_h1_slope() =>
+    emaSlope = ta.ema(close, h1Slow) - ta.ema(close, h1Slow)[slopeLookback]
+    atrNorm = ta.atr(14)
+    atrNorm > 0 ? emaSlope / atrNorm : 0
+h1Slope = request.security(syminfo.tickerid, "60", f_h1_slope()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+h1SlopeLongOK = not slopeEnabled or h1Slope > slopeFlatThreshold
+h1SlopeShortOK = not slopeEnabled or h1Slope < -slopeFlatThreshold
 
 // ── G: directional score. Stage A remains mandatory.
 longStructure = m15BiasClosed == 1
@@ -178,8 +189,8 @@ longLiq = recentSellSweep
 shortLiq = recentBuySweep
 longScore = (h1Bias == 1 ? 2 : 0) + (longStructure ? 1 : 0) + (longLiq ? 1 : 0) + (recentBullFvg ? 1 : 0) + (recentBullOb ? 1 : 0)
 shortScore = (h1Bias == -1 ? 2 : 0) + (shortStructure ? 1 : 0) + (shortLiq ? 1 : 0) + (recentBearFvg ? 1 : 0) + (recentBearOb ? 1 : 0)
-longQualified = showSignals and aLong and longScore >= minScore
-shortQualified = showSignals and aShort and shortScore >= minScore
+longQualified = showSignals and aLong and longScore >= minScore and h1SlopeLongOK
+shortQualified = showSignals and aShort and shortScore >= minScore and h1SlopeShortOK
 
 plot(stLine, "A — ATR Shift", color=stDir < 0 ? color.lime : color.red, linewidth=2)
 plotshape(showComponents and m15BosUpClosed, "B Bull BOS", shape.labelup, location.belowbar, color=color.green, text="BOS↑", textcolor=color.white, size=size.tiny)
@@ -193,10 +204,7 @@ plotshape(showComponents and m15BearOb, "E Bear OB retest", shape.diamond, locat
 plotshape(longQualified, "Phantom Flow BUY", shape.labelup, location.belowbar, color=color.lime, text="BUY", textcolor=color.black)
 plotshape(shortQualified, "Phantom Flow SELL", shape.labeldown, location.abovebar, color=color.red, text="SELL", textcolor=color.white)
 
-if longQualified
-    label.new(bar_index, low, "BUY | Score " + str.tostring(longScore) + "/6", style=label.style_label_up, color=color.lime, textcolor=color.black)
-if shortQualified
-    label.new(bar_index, high, "SELL | Score " + str.tostring(shortScore) + "/6", style=label.style_label_down, color=color.red, textcolor=color.white)
+// Single plotshape marker per qualified signal; duplicate label.new markers removed.
 
 alertcondition(longQualified, "Phantom Flow BUY", "Phantom Flow BUY: Stage A trigger with directional confirmations")
 alertcondition(shortQualified, "Phantom Flow SELL", "Phantom Flow SELL: Stage A trigger with directional confirmations")

@@ -28,6 +28,9 @@ obAge = input.int(20, "Maximum OB age (M15 bars)", minval=1, group=gE)
 gF = "F — H1 trend"
 h1Fast = input.int(20, "H1 EMA fast", minval=1, group=gF)
 h1Slow = input.int(50, "H1 EMA slow", minval=2, group=gF)
+slopeEnabled = input.bool(false, "Require H1 EMA50 slope direction", group=gF)
+slopeLookback = input.int(3, "Slope lookback (H1 bars)", minval=1, group=gF)
+slopeFlatThreshold = input.float(0.10, "Minimum slope strength (ATR units)", minval=0.0, step=0.01, group=gF)
 gG = "G — Quality score"
 minScore = input.int(2, "Minimum score (0–6)", minval=0, maxval=6, group=gG)
 showComponents = input.bool(true, "Show B–F confirmation markers", group=gG)
@@ -164,6 +167,13 @@ f_h1_bias() =>
     slow = ta.ema(close, h1Slow)
     close > fast and fast > slow ? 1 : close < fast and fast < slow ? -1 : 0
 h1Bias = request.security(syminfo.tickerid, "60", f_h1_bias()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+f_h1_slope() =>
+    emaSlope = ta.ema(close, h1Slow) - ta.ema(close, h1Slow)[slopeLookback]
+    atrNorm = ta.atr(14)
+    atrNorm > 0 ? emaSlope / atrNorm : 0
+h1Slope = request.security(syminfo.tickerid, "60", f_h1_slope()[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+h1SlopeLongOK = not slopeEnabled or h1Slope > slopeFlatThreshold
+h1SlopeShortOK = not slopeEnabled or h1Slope < -slopeFlatThreshold
 
 // ── G: directional score. Stage A remains mandatory.
 longStructure = m15BiasClosed == 1
@@ -172,8 +182,8 @@ longLiq = recentSellSweep
 shortLiq = recentBuySweep
 longScore = (h1Bias == 1 ? 2 : 0) + (longStructure ? 1 : 0) + (longLiq ? 1 : 0) + (recentBullFvg ? 1 : 0) + (recentBullOb ? 1 : 0)
 shortScore = (h1Bias == -1 ? 2 : 0) + (shortStructure ? 1 : 0) + (shortLiq ? 1 : 0) + (recentBearFvg ? 1 : 0) + (recentBearOb ? 1 : 0)
-longQualified = showSignals and aLong and longScore >= minScore
-shortQualified = showSignals and aShort and shortScore >= minScore
+longQualified = showSignals and aLong and longScore >= minScore and h1SlopeLongOK
+shortQualified = showSignals and aShort and shortScore >= minScore and h1SlopeShortOK
 
 plot(stLine, "A — ATR Shift", color=stDir < 0 ? color.lime : color.red, linewidth=2)
 plotshape(showComponents and m15BosUpClosed, "B Bull BOS", shape.labelup, location.belowbar, color=color.green, text="BOS↑", textcolor=color.white, size=size.tiny)
