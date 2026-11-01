@@ -34,11 +34,12 @@ obAge = input.int(20, "Maximum OB age (M15 bars)", minval=1, group=gE)
 gF = "F — H1 trend"
 h1Fast = input.int(20, "H1 EMA fast", minval=1, group=gF)
 h1Slow = input.int(50, "H1 EMA slow", minval=2, group=gF)
-slopeEnabled = input.bool(false, "Require H1 EMA50 slope direction", group=gF)
+qualityProfile = input.string("Moderate", "Quality profile", options=["Baseline", "Moderate", "Strict"], group=gF, tooltip="Baseline: slope off / score 2. Moderate: slope on / score 3. Strict: slope on / score 4.")
 slopeLookback = input.int(3, "Slope lookback (H1 bars)", minval=1, group=gF)
 slopeFlatThreshold = input.float(0.10, "Minimum slope strength (ATR units)", minval=0.0, step=0.01, group=gF)
+slopeEnabled = qualityProfile != "Baseline"
 gG = "G — Quality score"
-minScore = input.int(2, "Minimum score (0–6)", minval=0, maxval=6, group=gG)
+minScore = qualityProfile == "Baseline" ? 2 : qualityProfile == "Moderate" ? 3 : 4
 showComponents = input.bool(true, "Show B–F confirmation markers", group=gG)
 showSignals = input.bool(true, "Show qualified entries", group=gG)
 
