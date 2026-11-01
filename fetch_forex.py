@@ -107,6 +107,8 @@ def fetch_pair(pair: str):
 def summarize():
     out = {}
     for f in sorted(DATA_DIR.rglob("*.csv")):
+        if "Datetime" not in pd.read_csv(f, nrows=0).columns:
+            continue  # reports/ledgers (e.g. 5m_bidask/data_quality_report.csv)
         df = pd.read_csv(f, usecols=["Datetime"])
         if df.empty:
             continue
