@@ -31,7 +31,9 @@ HOLDOUT = (pd.Timestamp("2018-01-01", tz="UTC"), pd.Timestamp("2021-11-14", tz="
 
 BASE = {**z.BASE, "mtf": "H1", "d1_guard": False, "er_n": 48, "er_min": 0.0,
         "bw_lo": 0.0, "bw_hi": 1.0, "vol_k": 0.0, "be_at": 0.0, "trail_atr": 0.0, "time_stop": 0,
-        "flip_exit": True}
+        "flip_exit": True, "partial_at": 0.0, "partial_frac": 0.5, "be_after_partial": False,
+        "stop_mode": "band", "stop_n": 5,
+        "min_sl": 0.0, "max_sl": 0.0}
 
 CHANGES = {
     "D1 trend not against":            dict(d1_guard=True),
@@ -117,7 +119,9 @@ def run2(ctx, p, cost_pct):
         nonlocal pos, streak_side, streak, blocked
         side, e, s0 = pos["side"], pos["entry"], pos["stop0"]
         cost = e * cost_pct / 100
-        r = (side * (px - e) - cost) / (abs(e - s0) + cost)
+        f = pos.get("part_f", 0.0)
+        gross = (1 - f) * side * (px - e) + f * pos.get("part_gain", 0.0)
+        r = (gross - cost) / (abs(e - s0) + cost)
         out.append((pos["j"], j, side, e, s0, px, why, r))
         if p["loss_filter"]:
             if r < 0:
@@ -175,9 +179,18 @@ def run2(ctx, p, cost_pct):
             if side:
                 e = O[j]
                 s = zl[i] - vol[i] if side == 1 else zl[i] + vol[i]
+                if p["stop_mode"] == "candle":
+                    s = L[i] - 0.1 * atr[i] if side == 1 else H[i] + 0.1 * atr[i]
+                elif p["stop_mode"] == "swing":
+                    k0 = max(0, i - p["stop_n"] + 1)
+                    s = L[k0:i + 1].min() - 0.1 * atr[i] if side == 1 else H[k0:i + 1].max() + 0.1 * atr[i]
                 if p["stop"] == "atr":
                     s = e - side * atr[i] * p["atr_mult"]
-                if side * (e - s) > 0:
+                if p["max_sl"] > 0 and abs(e - s) > p["max_sl"]:
+                    side = 0                                    # bot: "SL > max pips, skipped"
+                elif p["min_sl"] > 0 and abs(e - s) < p["min_sl"]:
+                    s = e - side * p["min_sl"]
+                if side and side * (e - s) > 0:
                     t = e + side * p["rr"] * abs(e - s) if p["rr"] > 0 else None
                     pos = {"j": j, "side": side, "entry": e, "stop": s, "stop0": s, "tgt": t,
                            "best": e}
@@ -188,6 +201,15 @@ def run2(ctx, p, cost_pct):
             o = O[j] if pos["j"] != j else pos["entry"]
             if (L[j] <= s) if sd == 1 else (H[j] >= s):
                 close(j, min(o, s) if sd == 1 else max(o, s), "SL" if s == pos["stop0"] else "trail")
+            elif p["partial_at"] > 0 and "part_f" not in pos and (
+                    (H[j] >= pos["entry"] + p["partial_at"] * abs(pos["entry"] - pos["stop0"])) if sd == 1 else
+                    (L[j] <= pos["entry"] - p["partial_at"] * abs(pos["entry"] - pos["stop0"]))):
+                lvl = pos["entry"] + sd * p["partial_at"] * abs(pos["entry"] - pos["stop0"])
+                fill = max(o, lvl) if sd == 1 else min(o, lvl)
+                pos["part_f"], pos["part_gain"] = p["partial_frac"], sd * (fill - pos["entry"])
+                if p["be_after_partial"]:
+                    be = pos["entry"] + sd * pos["entry"] * cost_pct / 100
+                    pos["stop"] = max(pos["stop"], be) if sd == 1 else min(pos["stop"], be)
             elif t is not None and ((H[j] >= t) if sd == 1 else (L[j] <= t)):
                 close(j, max(o, t) if sd == 1 else min(o, t), "TP")
     if pos is not None:

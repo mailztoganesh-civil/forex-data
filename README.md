@@ -44,3 +44,10 @@ Run: **Actions → BTC intraday Zero Lag research → Run workflow**. Results: `
 2021-2026 and confirmed on the untouched 2018-2021 holdout (BTC 5m from 2017 is in `data/BTCUSD/5m`).
 Results: `results/btc/research2/`.
 
+## All strategies on currency, gold and BTC
+
+`scripts/all_strategies.py` runs every strategy (Zero Lag M5 defaults, Zero Lag BTC_M30_Trail preset,
+Asian breakout, Gold breakout V2, Gold SBS, EMA 34/50, SMA 9/18 pullback, CRT H1/M5) with bot-default
+rules on EURUSD, EURJPY, XAUUSD (Dukascopy M5 2016-2026, `data/duka_m5`) and BTCUSD (Binance 2018-2026).
+Results: `results/all_strategies/ranking.md`.
+
