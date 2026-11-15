@@ -63,7 +63,8 @@ def intrabar_exit(side, o, h, l, stop, tgt):
 
 
 # ----------------------------------------------------------------- Zero Lag
-def zero_lag(df, cost_pct, length=70, mult=1.2, rr=2.0, losses_to_block=2):
+def zero_lag_lines(df, length=70, mult=1.2):
+    """Zero-lag EMA, band width and trend state, same maths as the cBot / Pine script."""
     O, H, L, C = (df[c].to_numpy() for c in ("open", "high", "low", "close"))
     n, lag, w = len(C), (length - 1) // 2, length * 3
     zs = np.full(n, np.nan)
@@ -90,6 +91,13 @@ def zero_lag(df, cost_pct, length=70, mult=1.2, rr=2.0, losses_to_block=2):
         if C[i] < zl[i] - vol[i] and C[i - 1] >= zl[i - 1] - vol[i - 1]:
             t = -1
         trend[i] = t
+    return zl, vol, trend, start
+
+
+def zero_lag(df, cost_pct, length=70, mult=1.2, rr=2.0, losses_to_block=2):
+    O, H, L, C = (df[c].to_numpy() for c in ("open", "high", "low", "close"))
+    n = len(C)
+    zl, vol, trend, start = zero_lag_lines(df, length, mult)
 
     trades, pos = [], None
     streak_side, streak, blocked = None, 0, None
