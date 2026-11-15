@@ -30,7 +30,8 @@ CHECK = (pd.Timestamp("2024-11-14", tz="UTC"), None)
 HOLDOUT = (pd.Timestamp("2018-01-01", tz="UTC"), pd.Timestamp("2021-11-14", tz="UTC"))
 
 BASE = {**z.BASE, "mtf": "H1", "d1_guard": False, "er_n": 48, "er_min": 0.0,
-        "bw_lo": 0.0, "bw_hi": 1.0, "vol_k": 0.0, "be_at": 0.0, "trail_atr": 0.0, "time_stop": 0}
+        "bw_lo": 0.0, "bw_hi": 1.0, "vol_k": 0.0, "be_at": 0.0, "trail_atr": 0.0, "time_stop": 0,
+        "flip_exit": True}
 
 CHANGES = {
     "D1 trend not against":            dict(d1_guard=True),
@@ -144,7 +145,7 @@ def run2(ctx, p, cost_pct):
                 pos["stop"] = max(pos["stop"], tr_) if sd == 1 else min(pos["stop"], tr_)
             if p["time_stop"] and (j - pos["j"]) >= p["time_stop"]:
                 close(j, O[j], "time")
-        if pos is not None and ((fd and pos["side"] == 1) or (fu and pos["side"] == -1)):
+        if pos is not None and p["flip_exit"] and ((fd and pos["side"] == 1) or (fu and pos["side"] == -1)):
             close(j, O[j], "flip")
         if pos is None:
             ls, ss = fu, fd
