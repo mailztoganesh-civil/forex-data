@@ -18,7 +18,7 @@ jobs:
       - name: Install
         run: pip install --upgrade "pandas<3" numpy tabulate matplotlib reportlab
       - name: Fetch BTC 5-min history (Binance archive)
-        run: python scripts/fetch_btc_binance.py 2021-01
+        run: python scripts/fetch_btc_binance.py 2017-08
       - name: Commit data
         run: |
           git config user.name "github-actions[bot]"
