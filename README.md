@@ -1,6 +1,6 @@
 # forex-data
 
-Daily forex data collector (Yahoo Finance) for backtesting. Currently: **EUR/USD**.
+Daily forex data collector (Yahoo Finance) for backtesting. Currently: **EUR/USD** and **BTC/USD** (Yahoo `BTC-USD`, saved as `data/BTCUSD/`).
 
 ## Files (UTC timestamps, columns: Datetime, Open, High, Low, Close)
 
@@ -21,3 +21,13 @@ Edit `PAIRS` in `fetch_forex.py`, e.g. `["EURUSD", "GBPUSD", "USDJPY"]`.
 
 - Yahoo FX prices are indicative quotes, not broker prices; volume is not available.
 - 1-min history only grows forward. For older 1-min data, use HistData.com or Dukascopy.
+
+## BTC backtest
+
+`scripts/btc_backtest.py` runs Zero Lag Trend, SMA 9/18 pullback and CRT side by side on BTC/USD
+(H1 and H4 for the last ~2 years, D1/W1 for the full history), with the same rules as the
+ctrader-zerolag bot, the sma-signals worker and the CRT backtest.
+
+Run it: **Actions → BTC backtest → Run workflow**. Results are saved to `results/btc/`
+(`summary.md`, `yearly_R.csv`, `trades.csv`) and shown on the run's summary page.
+

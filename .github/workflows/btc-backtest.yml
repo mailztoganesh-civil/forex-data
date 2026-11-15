@@ -1,0 +1,31 @@
+name: BTC backtest (Zero Lag vs SMA pullback vs CRT)
+on:
+  workflow_dispatch:
+    inputs:
+      cost_pct:
+        description: "Round-trip cost, % of price (spread + slippage)"
+        default: "0.06"
+permissions: {contents: write}
+concurrency: {group: collect, cancel-in-progress: false}
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - name: Install
+        run: pip install --upgrade yfinance "pandas<3" tabulate
+      - name: Fetch BTC-USD
+        run: python fetch_forex.py BTCUSD
+      - name: Backtest
+        run: python scripts/btc_backtest.py --cost-pct "${{ inputs.cost_pct }}" --out results/btc
+      - name: Show summary
+        run: cat results/btc/summary.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data results
+          git diff --cached --quiet && echo "Nothing new" || (git commit -m "BTC backtest $(date -u +%Y-%m-%d)" && git pull --rebase && git push)

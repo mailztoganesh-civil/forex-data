@@ -21,14 +21,17 @@ import pandas as pd
 import yfinance as yf
 
 # Add more pairs here later, e.g. "GBPUSD", "USDJPY"
-PAIRS = ["EURUSD"]
+PAIRS = ["EURUSD", "BTCUSD"]
+
+# Yahoo symbols that don't follow the "<PAIR>=X" forex pattern
+SPECIAL = {"BTCUSD": "BTC-USD"}
 
 DATA_DIR = Path("data")
 COLS = ["Open", "High", "Low", "Close"]
 
 
 def yahoo_symbol(pair: str) -> str:
-    return f"{pair}=X"
+    return SPECIAL.get(pair, f"{pair}=X")
 
 
 def clean(df: pd.DataFrame) -> pd.DataFrame:
@@ -58,7 +61,7 @@ def merge_save(new: pd.DataFrame, path: Path) -> int:
     df = (df.drop_duplicates(subset="Datetime", keep="last")
             .sort_values("Datetime")
             .reset_index(drop=True))
-    df[COLS] = df[COLS].round(6)
+    df[COLS] = df[COLS].round(2 if df[COLS].iloc[-1].max() > 1000 else 6)
     df.to_csv(path, index=False, date_format="%Y-%m-%d %H:%M:%S")
     return len(df)
 
@@ -124,12 +127,13 @@ def summarize():
 
 if __name__ == "__main__":
     DATA_DIR.mkdir(exist_ok=True)
+    pairs = sys.argv[1:] or PAIRS   # e.g. python fetch_forex.py BTCUSD
     failed = []
-    for p in PAIRS:
+    for p in pairs:
         try:
             fetch_pair(p)
         except Exception as e:
             print(f"{p} failed: {e}")
             failed.append(p)
     summarize()
-    sys.exit(1 if failed and len(failed) == len(PAIRS) else 0)
+    sys.exit(1 if failed and len(failed) == len(pairs) else 0)
