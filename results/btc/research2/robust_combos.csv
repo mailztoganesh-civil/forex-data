@@ -1,0 +1,40 @@
+combo,DESIGN sharpe,CHECK sharpe,worst,DESIGN trades
+"Trail 5x ATR, no target + Time stop 96 bars (2 days)",0.88,0.91,0.88,258
+"Trail 5x ATR, no target",0.87,0.94,0.87,258
+"Trail 5x ATR, no target + Time stop 48 bars (1 day) + No weekends",0.86,1.08,0.86,211
+"Trail 5x ATR, no target + Time stop 72 bars (1.5 days)",0.85,0.86,0.85,258
+"Trail 5x ATR, no target + Time stop 96 bars (2 days) + No weekends",0.85,1.2,0.85,210
+"Trail 5x ATR, no target + No weekends",0.84,1.23,0.84,210
+"Trail 5x ATR, no target + Time stop 48 bars (1 day)",0.89,0.81,0.81,259
+Trail 6x ATR + Time stop 72 bars (1.5 days) + No weekends,0.8,1.22,0.8,210
+"Trail 5x ATR, no target + Time stop 72 bars (1.5 days) + No weekends",0.79,1.15,0.79,210
+Trail 5x ATR + Time stop 48 bars (1 day) + No weekends,0.78,1.29,0.78,211
+Trail 6x ATR + Time stop 96 bars (2 days) + No weekends,0.78,1.32,0.78,210
+Trail 6x ATR + No weekends,0.78,1.32,0.78,210
+Trail 6x ATR + Time stop 48 bars (1 day) + No weekends,0.76,1.24,0.76,211
+Trail 5x ATR + Time stop 72 bars (1.5 days) + No weekends,0.73,1.33,0.73,210
+Trail 5x ATR + No weekends,0.72,1.43,0.72,210
+Trail 5x ATR + Time stop 96 bars (2 days) + No weekends,0.72,1.43,0.72,210
+Trail 6x ATR + Time stop 48 bars (1 day),0.71,1.04,0.71,261
+Trail 6x ATR + Time stop 72 bars (1.5 days),0.71,1.04,0.71,257
+Trail 5x ATR + Time stop 72 bars (1.5 days),0.71,1.19,0.71,258
+Trail 5x ATR + Time stop 48 bars (1 day),0.7,1.13,0.7,259
+Trail 5x ATR,0.67,1.28,0.67,258
+Trail 5x ATR + Time stop 96 bars (2 days),0.67,1.28,0.67,258
+Time stop 72 bars (1.5 days) + No weekends,0.67,1.06,0.67,209
+Trail 6x ATR,0.66,1.14,0.66,257
+Trail 6x ATR + Time stop 96 bars (2 days),0.66,1.14,0.66,257
+Time stop 72 bars (1.5 days),0.66,0.98,0.66,259
+Trail 4x ATR + Time stop 48 bars (1 day) + No weekends,0.65,1.41,0.65,213
+Time stop 96 bars (2 days) + No weekends,0.64,1.13,0.64,209
+Time stop 48 bars (1 day) + No weekends,0.64,1.14,0.64,210
+Trail 4x ATR + Time stop 72 bars (1.5 days) + No weekends,0.62,1.45,0.62,212
+Trail 4x ATR + No weekends,0.6,1.5,0.6,212
+Trail 4x ATR + Time stop 96 bars (2 days) + No weekends,0.6,1.5,0.6,212
+Trail 4x ATR + Time stop 48 bars (1 day),0.59,1.27,0.59,263
+Time stop 48 bars (1 day),0.58,1.06,0.58,261
+Trail 4x ATR + Time stop 72 bars (1.5 days),0.58,1.31,0.58,262
+Time stop 96 bars (2 days),0.57,0.97,0.57,259
+Trail 4x ATR,0.57,1.35,0.57,262
+Trail 4x ATR + Time stop 96 bars (2 days),0.57,1.35,0.57,262
+No weekends,0.56,1.02,0.56,209

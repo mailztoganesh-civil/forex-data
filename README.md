@@ -38,3 +38,9 @@ Run it: **Actions → BTC backtest → Run workflow**. Results are saved to `res
 M5/M15/M30/H1 (choices made on the first 3 years, checked on the last 2).
 Run: **Actions → BTC intraday Zero Lag research → Run workflow**. Results: `results/btc/intraday/`.
 
+### Deeper research (exits, regime, volume filters)
+
+`scripts/zl_research2.py --holdout` tests extra changes on the M30 + H1 setup. Choices are made on
+2021-2026 and confirmed on the untouched 2018-2021 holdout (BTC 5m from 2017 is in `data/BTCUSD/5m`).
+Results: `results/btc/research2/`.
+

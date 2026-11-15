@@ -1,0 +1,4 @@
+test,DESIGN trades,DESIGN sharpe,DESIGN totR,DESIGN pf,DESIGN win,DESIGN ddR,DESIGN cagr,DESIGN maxdd,CHECK trades,CHECK sharpe,CHECK totR,CHECK pf,CHECK win,CHECK ddR,CHECK cagr,CHECK maxdd,HOLDOUT trades,HOLDOUT sharpe,HOLDOUT totR,HOLDOUT pf,HOLDOUT win,HOLDOUT ddR,HOLDOUT cagr,HOLDOUT maxdd
+M30 + H1 filter (start point),259,0.55,16.6,1.16,43.2,-15.0,5.1,-14.1,220,0.86,21.7,1.24,42.3,-9.1,9.7,-8.0,367,0.63,26.3,1.17,41.4,-14.6,6.4,-13.7
+"Trail 5x ATR, no target",258,0.87,28.5,1.31,39.9,-10.4,9.3,-10.0,216,0.94,25.5,1.32,40.7,-9.3,11.3,-9.0,369,1.27,68.4,1.49,41.7,-13.0,18.2,-12.3
+"Naive greedy on DESIGN: Trail 5x ATR, no target + Volume >= 1.0x avg",242,1.07,36.2,1.43,40.9,-9.9,12.1,-9.5,196,0.92,24.4,1.33,40.3,-9.4,10.8,-9.1,349,1.15,57.7,1.44,41.5,-12.2,15.1,-11.7

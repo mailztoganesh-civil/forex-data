@@ -1,0 +1,27 @@
+{
+  "changes": [
+    "Trail 5x ATR, no target"
+  ],
+  "params": {
+    "length": 70,
+    "mult": 1.2,
+    "mode": "flip",
+    "stop": "band",
+    "atr_mult": 1.5,
+    "rr": 0.0,
+    "mtf": "H1",
+    "hours": null,
+    "no_weekend": false,
+    "long_only": false,
+    "loss_filter": true,
+    "d1_guard": false,
+    "er_n": 48,
+    "er_min": 0.0,
+    "bw_lo": 0.0,
+    "bw_hi": 1.0,
+    "vol_k": 0.0,
+    "be_at": 0.0,
+    "trail_atr": 5.0,
+    "time_stop": 0
+  }
+}

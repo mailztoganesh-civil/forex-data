@@ -1,0 +1,6 @@
+test,DESIGN trades,DESIGN sharpe,DESIGN totR,DESIGN pf,DESIGN win,DESIGN ddR,DESIGN cagr,DESIGN maxdd,CHECK trades,CHECK sharpe,CHECK totR,CHECK pf,CHECK win,CHECK ddR,CHECK cagr,CHECK maxdd,HOLDOUT trades,HOLDOUT sharpe,HOLDOUT totR,HOLDOUT pf,HOLDOUT win,HOLDOUT ddR,HOLDOUT cagr,HOLDOUT maxdd,DESIGN corr,CHECK corr,HOLDOUT corr
+D1 bot alone,24,0.43,4.3,1.46,50.0,-4.5,1.4,-4.4,15,0.76,7.6,2.24,53.3,-3.2,2.8,-3.2,27,0.19,3.2,1.27,40.7,-5.6,0.5,-5.4,,,
+M30+H1 alone,259,0.55,16.6,1.16,43.2,-15.0,5.1,-14.1,220,0.86,21.7,1.24,42.3,-9.1,9.7,-8.0,367,0.63,26.3,1.17,41.4,-14.6,6.4,-13.7,,,
+Improved M30 alone,258,0.87,28.5,1.31,39.9,-10.4,9.3,-10.0,216,0.94,25.5,1.32,40.7,-9.3,11.3,-9.0,369,1.27,68.4,1.49,41.7,-13.0,18.2,-12.3,,,
+Portfolio: M30+H1 + D1 bot,283,0.66,,,,,6.6,-13.4,235,1.04,,,,,12.7,-10.6,394,0.65,,,,,7.0,-16.1,-0.01,0.01,0.06
+Portfolio: improved M30 + D1 bot,282,0.96,,,,,10.8,-11.5,231,1.13,,,,,14.4,-10.9,396,1.28,,,,,18.8,-14.3,-0.01,-0.03,0.02
