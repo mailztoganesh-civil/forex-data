@@ -31,3 +31,10 @@ ctrader-zerolag bot, the sma-signals worker and the CRT backtest.
 Run it: **Actions → BTC backtest → Run workflow**. Results are saved to `results/btc/`
 (`summary.md`, `yearly_R.csv`, `trades.csv`) and shown on the run's summary page.
 
+## BTC intraday (Zero Lag M5 / M15 / M30)
+
+`scripts/fetch_btc_binance.py` backfills BTC 5-min bars from Binance's public archive into
+`data/BTCUSD/5m/`. `scripts/zl_intraday_research.py` tests the Zero Lag bot settings on
+M5/M15/M30/H1 (choices made on the first 3 years, checked on the last 2).
+Run: **Actions → BTC intraday Zero Lag research → Run workflow**. Results: `results/btc/intraday/`.
+

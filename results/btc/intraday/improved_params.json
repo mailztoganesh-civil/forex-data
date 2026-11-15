@@ -1,0 +1,81 @@
+{
+  "M5": {
+    "changes": [
+      "MTF: D1 trend agrees",
+      "No weekends"
+    ],
+    "params": {
+      "length": 70,
+      "mult": 1.2,
+      "mode": "flip",
+      "stop": "band",
+      "atr_mult": 1.5,
+      "rr": 2.0,
+      "mtf": "D1",
+      "hours": null,
+      "no_weekend": true,
+      "long_only": false,
+      "loss_filter": true
+    }
+  },
+  "M15": {
+    "changes": [
+      "Length 280",
+      "No weekends",
+      "No target (exit on flip)"
+    ],
+    "params": {
+      "length": 280,
+      "mult": 1.2,
+      "mode": "flip",
+      "stop": "band",
+      "atr_mult": 1.5,
+      "rr": 0.0,
+      "mtf": null,
+      "hours": null,
+      "no_weekend": true,
+      "long_only": false,
+      "loss_filter": true
+    }
+  },
+  "M30": {
+    "changes": [
+      "No target (exit on flip)",
+      "Stop: ATR x1.5",
+      "No weekends"
+    ],
+    "params": {
+      "length": 70,
+      "mult": 1.2,
+      "mode": "flip",
+      "stop": "atr",
+      "atr_mult": 1.5,
+      "rr": 0.0,
+      "mtf": null,
+      "hours": null,
+      "no_weekend": true,
+      "long_only": false,
+      "loss_filter": true
+    }
+  },
+  "H1": {
+    "changes": [
+      "Length 35",
+      "No target (exit on flip)",
+      "Stop: ATR x1.5"
+    ],
+    "params": {
+      "length": 35,
+      "mult": 1.2,
+      "mode": "flip",
+      "stop": "atr",
+      "atr_mult": 1.5,
+      "rr": 0.0,
+      "mtf": null,
+      "hours": null,
+      "no_weekend": false,
+      "long_only": false,
+      "loss_filter": true
+    }
+  }
+}
