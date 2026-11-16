@@ -120,7 +120,7 @@ def s_zl_trail(df, m):
     return t[["side", "entry", "stop", "exit", "reason", "entry_time", "exit_time"]]
 
 
-def session_breakout(df, m, r0, r1, last_entry, rr, v2=False):
+def session_breakout(df, m, r0, r1, last_entry, rr, v2=False, max_range=0.0, min_range=0.0):
     O, H, L, C = (df[c].to_numpy() for c in ("open", "high", "low", "close"))
     idx = df.index
     n = len(C)
@@ -159,6 +159,8 @@ def session_breakout(df, m, r0, r1, last_entry, rr, v2=False):
             hi, lo = max(hi, H[i]), min(lo, L[i])
         if not ready and not skip and day[i] == cur and mins[i] + 5 >= r1 * 60:
             if cnt < (r1 - r0) * 12 * 0.8:
+                skip = True
+            elif (max_range > 0 and hi - lo > max_range) or (min_range > 0 and hi - lo < min_range):
                 skip = True
             else:
                 rhi, rlo, ready = hi, lo, True
