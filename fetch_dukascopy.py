@@ -79,13 +79,20 @@ def fetch_day(day: date):
 def probe(days):
     """Test one weekday first so a block shows up in seconds, not after 30 min."""
     test = next(d for d in reversed(days) if d.weekday() < 5)
-    try:
-        raw = download(test, timeout=20)
-        log(f"Probe {test}: OK, {len(raw)} bytes, {len(parse(test, raw))} bars")
-    except urllib.error.HTTPError as e:
-        sys.exit(f"Probe {test}: HTTP {e.code} - Dukascopy is refusing GitHub's servers")
-    except Exception as e:
-        sys.exit(f"Probe {test}: {type(e).__name__}: {e} - Dukascopy not reachable from GitHub")
+    for attempt in range(6):
+        try:
+            raw = download(test, timeout=20)
+            log(f"Probe {test}: OK, {len(raw)} bytes, {len(parse(test, raw))} bars")
+            return
+        except urllib.error.HTTPError as e:
+            if e.code in (429, 500, 502, 503, 504) and attempt < 5:
+                log(f"Probe {test}: HTTP {e.code}, waiting 60s"); time.sleep(60); continue
+            sys.exit(f"Probe {test}: HTTP {e.code} - Dukascopy is refusing GitHub's servers")
+        except Exception as e:
+            if attempt < 5:
+                log(f"Probe {test}: {type(e).__name__}, waiting 60s"); time.sleep(60); continue
+            sys.exit(f"Probe {test}: {type(e).__name__}: {e} - Dukascopy not reachable from GitHub")
+
 
 
 def save(rows):

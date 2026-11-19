@@ -1,6 +1,6 @@
 name: Backfill index CFDs 5m (Dukascopy US30 + NAS100)
 # US30 (USA30IDXUSD) is the YM proxy, NAS100 (USATECHIDXUSD) is the NQ proxy.
-# Output: data/<PAIR>/5m/YYYY.csv (UTC). Safe to re-run; merges into existing files.
+# Output (re-run 1): data/<PAIR>/5m/YYYY.csv (UTC). Safe to re-run; merges into existing files.
 on:
   push:
     branches: [stoic-index-data]
