@@ -1,0 +1,13 @@
+USA30IDXUSD: 17 days 2026-10-30 -> 2026-11-18
+Probe 2026-11-18: OK, 16588 bytes, 1335 bars
+  FAILED 2026-11-01: URLError
+  FAILED 2026-11-02: URLError
+  FAILED 2026-11-05: URLError
+  FAILED 2026-10-30: URLError
+  FAILED 2026-11-03: URLError
+  FAILED 2026-11-04: URLError
+  FAILED 2026-11-08: URLError
+  FAILED 2026-11-11: URLError
+Done: 9 days ok, 8 failed/skipped
+1-min bars: 10619, inconsistent OHLC: 0.00%
+  data/USA30IDXUSD/5m/2026.csv: 2124 rows
