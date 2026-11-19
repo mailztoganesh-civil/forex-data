@@ -1,12 +1,2 @@
-USATECHIDXUSD: 17 days 2026-10-30 -> 2026-11-18
-Probe 2026-11-18: OK, 16925 bytes, 1335 bars
-  FAILED 2026-11-01: URLError
-  FAILED 2026-11-04: URLError
-  FAILED 2026-11-08: URLError
-  FAILED 2026-11-09: URLError
-  FAILED 2026-11-10: URLError
-  FAILED 2026-11-11: URLError
-  FAILED 2026-11-13: URLError
-Done: 10 days ok, 7 failed/skipped
-1-min bars: 11895, inconsistent OHLC: 0.00%
-  data/USATECHIDXUSD/5m/2026.csv: 2379 rows
+USATECHIDXUSD: 2229 days 2019-10-07 -> 2026-11-18
+Probe 2026-11-18: HTTP 503 - Dukascopy is refusing GitHub's servers
