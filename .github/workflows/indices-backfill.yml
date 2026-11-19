@@ -21,12 +21,12 @@ jobs:
         with: {python-version: "3.12"}
       - run: pip install pandas
       - name: US30 (Dow / YM proxy)
-        run: python -u fetch_dukascopy.py ${{ inputs.days || '2600' }} USA30IDXUSD
+        run: mkdir -p logs; python -u fetch_dukascopy.py ${{ inputs.days || '20' }} USA30IDXUSD 2>&1 | tee logs/us30.txt || true
       - name: NAS100 (NQ proxy)
-        run: python -u fetch_dukascopy.py ${{ inputs.days || '2600' }} USATECHIDXUSD
+        run: python -u fetch_dukascopy.py ${{ inputs.days || '20' }} USATECHIDXUSD 2>&1 | tee logs/nas100.txt || true
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data
+          git add data logs
           git diff --cached --quiet && echo "No new data" || (git commit -m "Index 5m backfill $(date -u +%Y-%m-%d)" && git pull --rebase && git push)
