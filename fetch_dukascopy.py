@@ -24,12 +24,13 @@ import pandas as pd
 
 DAYS = int(sys.argv[1]) if len(sys.argv) > 1 else 365
 PAIR = sys.argv[2].upper() if len(sys.argv) > 2 else "EURUSD"
-POINT = 1e-3 if PAIR.endswith("JPY") else 1e-5
+import os
+POINT = float(os.environ.get("POINT", 1e-3 if (PAIR.endswith("JPY") or "IDX" in PAIR) else 1e-5))
 URL = "https://datafeed.dukascopy.com/datafeed/{p}/{y}/{m:02d}/{d:02d}/BID_candles_min_1.bi5"
 OUT = Path("data") / PAIR / "5m"
 REC = struct.Struct(">5if")  # time offset s, open, close, low, high (points), volume
 HEADERS = {"User-Agent": "Mozilla/5.0", "Referer": "https://freeserv.dukascopy.com/"}
-TIME_BUDGET = 20 * 60  # stop starting new downloads after 20 min, save what we have
+TIME_BUDGET = int(os.environ.get("TIME_BUDGET_MIN", 20)) * 60  # stop starting new downloads after 20 min, save what we have
 START = time.time()
 
 

@@ -1,0 +1,32 @@
+name: Backfill index CFDs 5m (Dukascopy US30 + NAS100)
+# US30 (USA30IDXUSD) is the YM proxy, NAS100 (USATECHIDXUSD) is the NQ proxy.
+# Output: data/<PAIR>/5m/YYYY.csv (UTC). Safe to re-run; merges into existing files.
+on:
+  push:
+    branches: [stoic-index-data]
+    paths: [.github/workflows/indices-backfill.yml]
+  workflow_dispatch:
+    inputs:
+      days: {description: "Days of history", default: "2600"}
+permissions: {contents: write}
+concurrency: {group: collect, cancel-in-progress: false}
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env: {TIME_BUDGET_MIN: "75"}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install pandas
+      - name: US30 (Dow / YM proxy)
+        run: python -u fetch_dukascopy.py ${{ inputs.days || '2600' }} USA30IDXUSD
+      - name: NAS100 (NQ proxy)
+        run: python -u fetch_dukascopy.py ${{ inputs.days || '2600' }} USATECHIDXUSD
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data
+          git diff --cached --quiet && echo "No new data" || (git commit -m "Index 5m backfill $(date -u +%Y-%m-%d)" && git pull --rebase && git push)
