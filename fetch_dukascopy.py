@@ -62,7 +62,7 @@ def fetch_day(day: date):
     if time.time() - START > TIME_BUDGET:
         return day, None
     err = ""
-    for attempt in range(3):
+    for attempt in range(int(os.environ.get("RETRIES", 3))):
         try:
             return day, parse(day, download(day))
         except urllib.error.HTTPError as e:
@@ -71,7 +71,7 @@ def fetch_day(day: date):
             err = f"HTTP {e.code}"
         except Exception as e:
             err = type(e).__name__
-        time.sleep(1 + attempt * 2)
+        time.sleep(2 + attempt * 3)
     log(f"  FAILED {day}: {err}")
     return day, None
 
@@ -114,17 +114,25 @@ def main():
     days = [d for d in days if d.weekday() != 5]  # Saturdays have no data
     log(f"{PAIR}: {len(days)} days {days[0]} -> {days[-1]}")
     probe(days)
-    rows, done, failed = [], 0, 0
-    with ThreadPoolExecutor(max_workers=6) as ex:
+    rows, done, failed, retry_days = [], 0, 0, []
+    with ThreadPoolExecutor(max_workers=int(os.environ.get("WORKERS", 6))) as ex:
         for fut in as_completed([ex.submit(fetch_day, d) for d in days]):
             day, r = fut.result()
             done += 1
             if r is None:
                 failed += 1
+                retry_days.append(day)
             else:
                 rows.extend(r)
             if done % 20 == 0:
                 log(f"  {done}/{len(days)} days, {len(rows)} bars, {failed} failed, {time.time() - START:.0f}s")
+    if retry_days and time.time() - START < TIME_BUDGET:
+        log(f"Retrying {len(retry_days)} failed days one at a time")
+        for d in sorted(retry_days):
+            time.sleep(1)
+            _, r = fetch_day(d)
+            if r is not None:
+                rows.extend(r); failed -= 1
     log(f"Done: {done - failed} days ok, {failed} failed/skipped")
     if not rows:
         sys.exit("No data downloaded")
