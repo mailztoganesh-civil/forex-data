@@ -1,2 +1,217 @@
 USA30IDXUSD: 2229 days 2019-10-07 -> 2026-11-18
-Probe 2026-11-18: HTTP 503 - Dukascopy is refusing GitHub's servers
+Probe 2026-11-18: OK, 16588 bytes, 1335 bars
+  FAILED 2019-10-22: HTTP 503
+  FAILED 2019-10-24: TimeoutError
+  FAILED 2019-10-27: HTTP 503
+  20/2229 days, 19872 bars, 3 failed, 258s
+  40/2229 days, 42355 bars, 3 failed, 263s
+  60/2229 days, 63246 bars, 3 failed, 278s
+  80/2229 days, 82377 bars, 3 failed, 505s
+  FAILED 2020-01-06: URLError
+  FAILED 2020-01-08: URLError
+  100/2229 days, 102101 bars, 5 failed, 640s
+  120/2229 days, 123261 bars, 5 failed, 656s
+  140/2229 days, 143822 bars, 5 failed, 661s
+  160/2229 days, 164807 bars, 5 failed, 666s
+  180/2229 days, 186166 bars, 5 failed, 670s
+  FAILED 2020-05-24: HTTP 503
+  200/2229 days, 208545 bars, 6 failed, 742s
+  FAILED 2020-06-15: URLError
+  FAILED 2020-06-16: URLError
+  220/2229 days, 228570 bars, 8 failed, 971s
+  FAILED 2020-06-21: HTTP 503
+  FAILED 2020-06-24: HTTP 503
+  FAILED 2020-06-26: TimeoutError
+  FAILED 2020-06-28: HTTP 503
+  FAILED 2020-06-30: TimeoutError
+  240/2229 days, 246759 bars, 13 failed, 1306s
+  FAILED 2020-08-04: HTTP 503
+  FAILED 2020-08-03: HTTP 503
+  FAILED 2020-08-02: HTTP 503
+  260/2229 days, 265418 bars, 16 failed, 1631s
+  FAILED 2020-08-07: TimeoutError
+  FAILED 2020-08-05: TimeoutError
+  FAILED 2020-08-06: URLError
+  FAILED 2020-08-12: URLError
+  280/2229 days, 281668 bars, 20 failed, 2061s
+  FAILED 2020-09-07: TimeoutError
+  FAILED 2020-09-08: HTTP 503
+  FAILED 2020-09-09: HTTP 503
+  300/2229 days, 300354 bars, 23 failed, 2363s
+  320/2229 days, 322928 bars, 23 failed, 2554s
+  340/2229 days, 345561 bars, 23 failed, 2580s
+  360/2229 days, 366544 bars, 23 failed, 2588s
+  380/2229 days, 389230 bars, 23 failed, 2592s
+  400/2229 days, 409072 bars, 23 failed, 2596s
+  420/2229 days, 430295 bars, 23 failed, 2736s
+  FAILED 2021-02-10: URLError
+  FAILED 2021-02-17: URLError
+  FAILED 2021-02-21: HTTP 503
+  FAILED 2021-02-25: TimeoutError
+  FAILED 2021-02-26: TimeoutError
+  440/2229 days, 447390 bars, 28 failed, 3144s
+  FAILED 2021-03-01: HTTP 503
+  FAILED 2021-03-14: URLError
+  460/2229 days, 468689 bars, 30 failed, 3336s
+  FAILED 2021-04-12: HTTP 503
+  480/2229 days, 488233 bars, 31 failed, 3527s
+  FAILED 2021-04-19: HTTP 503
+  FAILED 2021-04-21: HTTP 503
+  FAILED 2021-04-20: TimeoutError
+  FAILED 2021-04-22: TimeoutError
+  FAILED 2021-05-10: URLError
+  500/2229 days, 504225 bars, 36 failed, 3932s
+  520/2229 days, 526720 bars, 36 failed, 4011s
+  FAILED 2021-06-17: HTTP 503
+  FAILED 2021-06-20: HTTP 503
+  FAILED 2021-06-24: URLError
+  FAILED 2021-06-25: URLError
+  540/2229 days, 545250 bars, 40 failed, 4334s
+  FAILED 2021-06-27: URLError
+  FAILED 2021-06-30: URLError
+  FAILED 2021-07-01: TimeoutError
+  FAILED 2021-07-07: HTTP 503
+  FAILED 2021-07-06: TimeoutError
+  560/2229 days, 561248 bars, 45 failed, 4596s
+  580/2229 days, 583798 bars, 45 failed, 4601s
+  FAILED 2021-07-05: TimeoutError
+  600/2229 days, 604926 bars, 46 failed, 4630s
+  FAILED 2021-09-08: URLError
+  FAILED 2021-09-10: TimeoutError
+  FAILED 2021-09-14: TimeoutError
+  FAILED 2021-09-17: TimeoutError
+  FAILED 2021-09-20: HTTP 503
+  FAILED 2021-09-22: HTTP 503
+  FAILED 2021-09-23: TimeoutError
+  620/2229 days, 617286 bars, 53 failed, 5249s
+  FAILED 2021-09-30: URLError
+  FAILED 2021-10-01: TimeoutError
+  FAILED 2021-10-04: HTTP 503
+  FAILED 2021-10-05: HTTP 503
+  FAILED 2021-10-06: HTTP 503
+  FAILED 2021-10-07: HTTP 503
+  FAILED 2021-10-08: TimeoutError
+  FAILED 2021-10-10: HTTP 503
+  FAILED 2021-10-11: HTTP 503
+  FAILED 2021-10-17: URLError
+  640/2229 days, 629181 bars, 63 failed, 5845s
+  FAILED 2021-10-20: URLError
+  FAILED 2021-10-25: HTTP 503
+  FAILED 2021-10-27: HTTP 503
+  FAILED 2021-10-26: HTTP 503
+  FAILED 2021-10-28: HTTP 503
+  FAILED 2021-10-29: TimeoutError
+  FAILED 2021-10-31: HTTP 503
+  FAILED 2021-11-05: TimeoutError
+  660/2229 days, 642639 bars, 71 failed, 6296s
+  FAILED 2021-11-16: HTTP 503
+  FAILED 2021-11-19: HTTP 503
+  FAILED 2021-11-22: HTTP 503
+  FAILED 2021-11-23: HTTP 503
+  FAILED 2021-11-24: HTTP 503
+  FAILED 2021-11-25: HTTP 503
+  FAILED 2021-11-28: URLError
+  FAILED 2021-12-05: URLError
+  FAILED 2021-12-07: TimeoutError
+  680/2229 days, 654472 bars, 80 failed, 6842s
+  FAILED 2021-12-08: TimeoutError
+  FAILED 2021-12-09: TimeoutError
+  FAILED 2021-12-13: HTTP 503
+  700/2229 days, 671708 bars, 83 failed, 7007s
+  720/2229 days, 692930 bars, 83 failed, 7020s
+  740/2229 days, 716899 bars, 83 failed, 7273s
+  FAILED 2022-02-13: URLError
+  760/2229 days, 738054 bars, 84 failed, 7395s
+  780/2229 days, 759470 bars, 84 failed, 7414s
+  FAILED 2022-04-05: HTTP 503
+  FAILED 2022-04-07: TimeoutError
+  FAILED 2022-04-08: URLError
+  FAILED 2022-04-12: TimeoutError
+  FAILED 2022-04-13: TimeoutError
+  FAILED 2022-04-22: HTTP 503
+  FAILED 2022-04-19: TimeoutError
+  FAILED 2022-04-27: HTTP 503
+  FAILED 2022-04-26: HTTP 503
+  800/2229 days, 769052 bars, 93 failed, 7968s
+  FAILED 2022-04-25: HTTP 503
+  FAILED 2022-05-16: HTTP 503
+  FAILED 2022-05-18: TimeoutError
+  820/2229 days, 787741 bars, 96 failed, 8355s
+  FAILED 2022-05-20: HTTP 503
+  840/2229 days, 789076 bars, 115 failed, 8427s
+  860/2229 days, 789076 bars, 135 failed, 8427s
+  880/2229 days, 789076 bars, 155 failed, 8427s
+  900/2229 days, 789076 bars, 175 failed, 8427s
+  920/2229 days, 789076 bars, 195 failed, 8427s
+  940/2229 days, 789076 bars, 215 failed, 8427s
+  960/2229 days, 789076 bars, 235 failed, 8427s
+  980/2229 days, 789076 bars, 255 failed, 8427s
+  1000/2229 days, 789076 bars, 275 failed, 8427s
+  1020/2229 days, 789076 bars, 295 failed, 8427s
+  1040/2229 days, 789076 bars, 315 failed, 8427s
+  1060/2229 days, 789076 bars, 335 failed, 8427s
+  1080/2229 days, 789076 bars, 355 failed, 8427s
+  1100/2229 days, 789076 bars, 375 failed, 8427s
+  1120/2229 days, 789076 bars, 395 failed, 8427s
+  1140/2229 days, 789076 bars, 415 failed, 8427s
+  1160/2229 days, 789076 bars, 435 failed, 8427s
+  1180/2229 days, 789076 bars, 455 failed, 8427s
+  1200/2229 days, 789076 bars, 475 failed, 8427s
+  1220/2229 days, 789076 bars, 495 failed, 8427s
+  1240/2229 days, 789076 bars, 515 failed, 8427s
+  1260/2229 days, 789076 bars, 535 failed, 8427s
+  1280/2229 days, 789076 bars, 555 failed, 8427s
+  1300/2229 days, 789076 bars, 575 failed, 8427s
+  1320/2229 days, 789076 bars, 595 failed, 8427s
+  1340/2229 days, 789076 bars, 615 failed, 8427s
+  1360/2229 days, 789076 bars, 635 failed, 8427s
+  1380/2229 days, 789076 bars, 655 failed, 8427s
+  1400/2229 days, 789076 bars, 675 failed, 8427s
+  1420/2229 days, 789076 bars, 695 failed, 8427s
+  1440/2229 days, 789076 bars, 715 failed, 8427s
+  1460/2229 days, 789076 bars, 735 failed, 8427s
+  1480/2229 days, 789076 bars, 755 failed, 8427s
+  1500/2229 days, 789076 bars, 775 failed, 8427s
+  1520/2229 days, 789076 bars, 795 failed, 8427s
+  1540/2229 days, 789076 bars, 815 failed, 8427s
+  1560/2229 days, 789076 bars, 835 failed, 8427s
+  1580/2229 days, 789076 bars, 855 failed, 8427s
+  1600/2229 days, 789076 bars, 875 failed, 8427s
+  1620/2229 days, 789076 bars, 895 failed, 8427s
+  1640/2229 days, 789076 bars, 915 failed, 8427s
+  1660/2229 days, 789076 bars, 935 failed, 8427s
+  1680/2229 days, 789076 bars, 955 failed, 8427s
+  1700/2229 days, 789076 bars, 975 failed, 8427s
+  1720/2229 days, 789076 bars, 995 failed, 8427s
+  1740/2229 days, 789076 bars, 1015 failed, 8427s
+  1760/2229 days, 789076 bars, 1035 failed, 8427s
+  1780/2229 days, 789076 bars, 1055 failed, 8427s
+  1800/2229 days, 789076 bars, 1075 failed, 8427s
+  1820/2229 days, 789076 bars, 1095 failed, 8427s
+  1840/2229 days, 789076 bars, 1115 failed, 8427s
+  1860/2229 days, 789076 bars, 1135 failed, 8427s
+  1880/2229 days, 789076 bars, 1155 failed, 8427s
+  1900/2229 days, 789076 bars, 1175 failed, 8427s
+  1920/2229 days, 789076 bars, 1195 failed, 8427s
+  1940/2229 days, 789076 bars, 1215 failed, 8427s
+  1960/2229 days, 789076 bars, 1235 failed, 8427s
+  1980/2229 days, 789076 bars, 1255 failed, 8427s
+  2000/2229 days, 789076 bars, 1275 failed, 8427s
+  2020/2229 days, 789076 bars, 1295 failed, 8427s
+  2040/2229 days, 789076 bars, 1315 failed, 8427s
+  2060/2229 days, 789076 bars, 1335 failed, 8427s
+  2080/2229 days, 789076 bars, 1355 failed, 8427s
+  2100/2229 days, 789076 bars, 1375 failed, 8427s
+  2120/2229 days, 789076 bars, 1395 failed, 8427s
+  2140/2229 days, 789076 bars, 1415 failed, 8427s
+  2160/2229 days, 789076 bars, 1435 failed, 8427s
+  2180/2229 days, 789076 bars, 1455 failed, 8427s
+  2200/2229 days, 789076 bars, 1475 failed, 8427s
+  2220/2229 days, 789076 bars, 1495 failed, 8427s
+  FAILED 2022-05-22: HTTP 503
+Done: 726 days ok, 1503 failed/skipped
+1-min bars: 790411, inconsistent OHLC: 0.00%
+  data/USA30IDXUSD/5m/2019.csv: 15568 rows
+  data/USA30IDXUSD/5m/2020.csv: 64054 rows
+  data/USA30IDXUSD/5m/2021.csv: 55259 rows
+  data/USA30IDXUSD/5m/2022.csv: 23478 rows
