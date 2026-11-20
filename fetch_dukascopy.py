@@ -119,6 +119,12 @@ def main():
     today = datetime.now(timezone.utc).date()
     days = [today - timedelta(days=i) for i in range(DAYS, 0, -1)]  # excludes today (incomplete)
     days = [d for d in days if d.weekday() != 5]  # Saturdays have no data
+    if os.environ.get("FROM_DATE"):  # resume a backfill: only days on/after this date
+        fd = datetime.strptime(os.environ["FROM_DATE"], "%Y-%m-%d").date()
+        days = [d for d in days if d >= fd]
+    if os.environ.get("TO_DATE"):
+        td = datetime.strptime(os.environ["TO_DATE"], "%Y-%m-%d").date()
+        days = [d for d in days if d <= td]
     log(f"{PAIR}: {len(days)} days {days[0]} -> {days[-1]}")
     probe(days)
     rows, done, failed, retry_days = [], 0, 0, []
