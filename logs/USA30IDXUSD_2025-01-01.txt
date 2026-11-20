@@ -1,7 +1,57 @@
 USA30IDXUSD: 313 days 2025-01-01 -> 2025-12-31
-Probe 2025-12-31: TimeoutError, waiting 60s
-Probe 2025-12-31: HTTP 503, waiting 60s
-Probe 2025-12-31: HTTP 503, waiting 60s
-Probe 2025-12-31: TimeoutError, waiting 60s
-Probe 2025-12-31: URLError, waiting 60s
-Probe 2025-12-31: URLError: <urlopen error timed out> - Dukascopy not reachable from GitHub
+Probe 2025-12-31: OK, 14828 bytes, 1274 bars
+  FAILED 2025-01-13: HTTP 503
+  FAILED 2025-01-14: HTTP 503
+  20/313 days, 17996 bars, 2 failed, 433s
+  40/313 days, 39181 bars, 2 failed, 447s
+  60/313 days, 61897 bars, 2 failed, 627s
+  FAILED 2025-03-27: HTTP 503
+  FAILED 2025-03-28: HTTP 503
+  80/313 days, 81914 bars, 4 failed, 914s
+  100/313 days, 102038 bars, 4 failed, 997s
+  FAILED 2025-05-07: HTTP 503
+  FAILED 2025-05-13: HTTP 503
+  FAILED 2025-05-14: HTTP 503
+  FAILED 2025-05-15: HTTP 503
+  120/313 days, 119378 bars, 8 failed, 1563s
+  FAILED 2025-06-03: TimeoutError
+  140/313 days, 140458 bars, 9 failed, 1918s
+  FAILED 2025-06-27: HTTP 503
+  FAILED 2025-06-29: HTTP 503
+  FAILED 2025-06-30: HTTP 503
+  FAILED 2025-07-01: TimeoutError
+  FAILED 2025-07-04: TimeoutError
+  160/313 days, 156196 bars, 14 failed, 2575s
+  FAILED 2025-07-07: URLError
+  FAILED 2025-07-17: TimeoutError
+  FAILED 2025-07-18: TimeoutError
+  FAILED 2025-07-20: URLError
+  180/313 days, 176068 bars, 18 failed, 3063s
+  FAILED 2025-07-27: URLError
+  FAILED 2025-07-31: HTTP 503
+  FAILED 2025-08-03: HTTP 503
+  FAILED 2025-08-04: TimeoutError
+  FAILED 2025-08-06: URLError
+  200/313 days, 193293 bars, 23 failed, 3547s
+  FAILED 2025-08-26: TimeoutError
+  FAILED 2025-08-28: TimeoutError
+  FAILED 2025-08-29: HTTP 503
+  FAILED 2025-08-31: HTTP 503
+  220/313 days, 210421 bars, 27 failed, 4112s
+  FAILED 2025-09-15: HTTP 503
+  FAILED 2025-09-17: HTTP 503
+  FAILED 2025-09-19: URLError
+  240/313 days, 229203 bars, 30 failed, 4539s
+  FAILED 2025-10-13: HTTP 503
+  FAILED 2025-10-14: HTTP 503
+  260/313 days, 249102 bars, 32 failed, 4895s
+  FAILED 2025-10-28: URLError
+  280/313 days, 269187 bars, 33 failed, 5106s
+  300/313 days, 290827 bars, 33 failed, 5125s
+Retrying 33 failed days one at a time
+  FAILED 2025-05-07: URLError
+  FAILED 2025-06-03: TimeoutError
+  FAILED 2025-06-27: URLError
+Done: 310 days ok, 3 failed/skipped
+1-min bars: 337081, inconsistent OHLC: 0.00%
+  data/USA30IDXUSD/5m/2025.csv: 67485 rows
