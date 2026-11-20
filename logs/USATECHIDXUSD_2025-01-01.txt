@@ -1,0 +1,61 @@
+USATECHIDXUSD: 313 days 2025-01-01 -> 2025-12-31
+Probe 2025-12-31: OK, 15630 bytes, 1274 bars
+  FAILED 2025-01-01: TimeoutError
+  FAILED 2025-01-03: HTTP 503
+  FAILED 2025-01-05: TimeoutError
+  20/313 days, 19331 bars, 3 failed, 524s
+  FAILED 2025-02-09: HTTP 503
+  FAILED 2025-02-07: HTTP 503
+  40/313 days, 39352 bars, 5 failed, 817s
+  FAILED 2025-02-17: URLError
+  FAILED 2025-02-20: HTTP 503
+  FAILED 2025-02-24: TimeoutError
+  60/313 days, 58079 bars, 8 failed, 1195s
+  FAILED 2025-03-30: HTTP 503
+  FAILED 2025-03-27: HTTP 503
+  80/313 days, 79112 bars, 10 failed, 1641s
+  100/313 days, 99175 bars, 10 failed, 1822s
+  FAILED 2025-05-11: HTTP 503
+  FAILED 2025-05-12: HTTP 503
+  FAILED 2025-05-13: TimeoutError
+  120/313 days, 119120 bars, 13 failed, 2269s
+  FAILED 2025-05-16: URLError
+  FAILED 2025-05-29: HTTP 503
+  FAILED 2025-06-01: HTTP 503
+  FAILED 2025-06-02: HTTP 503
+  FAILED 2025-06-03: HTTP 503
+  140/313 days, 136031 bars, 18 failed, 2799s
+  160/313 days, 156707 bars, 18 failed, 2979s
+  180/313 days, 179305 bars, 18 failed, 2990s
+  FAILED 2025-08-01: TimeoutError
+  200/313 days, 200690 bars, 19 failed, 3263s
+  FAILED 2025-08-29: TimeoutError
+  FAILED 2025-08-28: HTTP 503
+  FAILED 2025-08-31: HTTP 503
+  FAILED 2025-09-01: HTTP 503
+  FAILED 2025-09-02: URLError
+  220/313 days, 216676 bars, 24 failed, 3873s
+  FAILED 2025-09-15: HTTP 503
+  FAILED 2025-09-16: HTTP 503
+  FAILED 2025-09-17: URLError
+  FAILED 2025-10-07: HTTP 503
+  FAILED 2025-10-06: TimeoutError
+  240/313 days, 232683 bars, 29 failed, 4478s
+  FAILED 2025-10-21: TimeoutError
+  FAILED 2025-10-22: TimeoutError
+  FAILED 2025-10-23: TimeoutError
+  FAILED 2025-10-29: URLError
+  260/313 days, 250037 bars, 33 failed, 5164s
+  FAILED 2025-11-09: HTTP 503
+  280/313 days, 271277 bars, 34 failed, 5445s
+  300/313 days, 292946 bars, 34 failed, 5518s
+Retrying 34 failed days one at a time
+  FAILED 2025-01-03: HTTP 503
+  FAILED 2025-05-16: URLError
+  FAILED 2025-09-17: URLError
+  FAILED 2025-10-06: URLError
+  FAILED 2025-10-07: HTTP 503
+  FAILED 2025-10-23: URLError
+Done: 307 days ok, 6 failed/skipped
+1-min bars: 332726, inconsistent OHLC: 0.00%
+  data/USATECHIDXUSD/5m/2025.csv: 66602 rows
