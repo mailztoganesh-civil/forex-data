@@ -1,0 +1,7 @@
+USA30IDXUSD: 313 days 2025-01-01 -> 2025-12-31
+Probe 2025-12-31: TimeoutError, waiting 60s
+Probe 2025-12-31: HTTP 503, waiting 60s
+Probe 2025-12-31: HTTP 503, waiting 60s
+Probe 2025-12-31: TimeoutError, waiting 60s
+Probe 2025-12-31: URLError, waiting 60s
+Probe 2025-12-31: URLError: <urlopen error timed out> - Dukascopy not reachable from GitHub
