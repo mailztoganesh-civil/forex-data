@@ -1,6 +1,6 @@
 name: Backfill index CFDs 5m (Dukascopy US30 + NAS100)
 # US30 (USA30IDXUSD) = YM proxy, NAS100 (USATECHIDXUSD) = NQ proxy. Output data/<PAIR>/5m/YYYY.csv (UTC).
-# Resume run 2: one job per pair-year in parallel (Dukascopy throttles a single runner).
+# Resume run 3 (US30 2025 retry): one job per pair-year in parallel (Dukascopy throttles a single runner).
 on:
   push:
     branches: [stoic-index-data]
@@ -16,17 +16,7 @@ jobs:
       max-parallel: 10
       matrix:
         include:
-          - {pair: USA30IDXUSD, from: "2022-05-25", to: "2022-12-31"}
-          - {pair: USA30IDXUSD, from: "2023-01-01", to: "2023-12-31"}
-          - {pair: USA30IDXUSD, from: "2024-01-01", to: "2024-12-31"}
           - {pair: USA30IDXUSD, from: "2025-01-01", to: "2025-12-31"}
-          - {pair: USA30IDXUSD, from: "2026-01-01", to: "2026-11-19"}
-          - {pair: USATECHIDXUSD, from: "2021-05-26", to: "2021-12-31"}
-          - {pair: USATECHIDXUSD, from: "2022-01-01", to: "2022-12-31"}
-          - {pair: USATECHIDXUSD, from: "2023-01-01", to: "2023-12-31"}
-          - {pair: USATECHIDXUSD, from: "2024-01-01", to: "2024-12-31"}
-          - {pair: USATECHIDXUSD, from: "2025-01-01", to: "2025-12-31"}
-          - {pair: USATECHIDXUSD, from: "2026-01-01", to: "2026-11-19"}
     env: {TIME_BUDGET_MIN: "180", WORKERS: "2", RETRIES: "6", FROM_DATE: "${{ matrix.from }}", TO_DATE: "${{ matrix.to }}"}
     steps:
       - uses: actions/checkout@v4
